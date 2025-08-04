@@ -1,0 +1,78 @@
+services:
+  mysql:
+    image: mysql:5.7
+    platform: linux/amd64
+    container_name: qloapps-mysql-dev
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${QLOAPPS_MYSQL_ROOT_PASSWORD:-qloapps_root}
+      MYSQL_DATABASE: ${QLOAPPS_DATABASE:-qloapps_hotels}
+      MYSQL_USER: ${MYSQL_USER:-qloapps}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-qloapps123}
+    ports:
+      - '${QLOAPPS_MYSQL_PORT:-3307}:3306'
+    volumes:
+      - qloapps_mysql_data_dev:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p${QLOAPPS_MYSQL_ROOT_PASSWORD:-qloapps_root}']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - qloapps-network-dev
+
+  qloapps:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: qloapps-booking-system-dev
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      # QloApps Configuration
+      USER_PASSWORD: ${QLOAPPS_USER_PASSWORD:-qloapps123}
+      MYSQL_ROOT_PASSWORD: ${QLOAPPS_MYSQL_ROOT_PASSWORD:-qloapps_root}
+      MYSQL_DATABASE: ${QLOAPPS_DATABASE:-qloapps_hotels}
+      MYSQL_USER: ${MYSQL_USER:-qloapps}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-qloapps123}
+      # Database host (container name)
+      MYSQL_HOST: mysql
+      # Development environment
+      ENVIRONMENT: development
+    ports:
+      # Web Interface
+      - '${QLOAPPS_WEB_PORT:-8080}:80'
+      # SSH Access  
+      - '${QLOAPPS_SSH_PORT:-2222}:22'
+    volumes:
+      # Mount source code for hot reloading (IMPORTANT: this enables live editing)
+      - .:/home/qloapps/www/hotelcommerce
+      # Persist uploaded files, cache, and logs separately to avoid conflicts
+      - qloapps_uploads_dev:/home/qloapps/www/hotelcommerce/upload
+      - qloapps_cache_dev:/home/qloapps/www/hotelcommerce/cache
+      - qloapps_logs_dev:/home/qloapps/www/hotelcommerce/log
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:80', '||', 'exit', '1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s  # Give services time to start
+    networks:
+      - qloapps-network-dev
+
+volumes:
+  qloapps_mysql_data_dev:
+    driver: local
+  qloapps_uploads_dev:
+    driver: local
+  qloapps_cache_dev:
+    driver: local
+  qloapps_logs_dev:
+    driver: local
+
+networks:
+  qloapps-network-dev:
+    driver: bridge
