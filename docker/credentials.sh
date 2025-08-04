@@ -1,26 +1,24 @@
 #!/bin/bash
-set -u
-##set user password
-user=qloapps
-echo -e "$USER_PASSWORD\n$USER_PASSWORD" | passwd $user
-##Check for database connectivity
-database_connectivity_check=no
-var=1
-while [ "$database_connectivity_check" != "mysql" ]; do
-/etc/init.d/mysql start
-database_connectivity_check=`mysqlshow --user=root | grep -o mysql`
-if [ $var -ge 2 ]; then
-exit 1
+set -eu
+
+# Set the password for the application user.
+# Note: In a production environment, consider more secure methods for user management.
+if [ -n "${USER_PASSWORD-}" ]; then
+    echo -e "$USER_PASSWORD\n$USER_PASSWORD" | passwd "$user"
 fi
-var=$((var+1))
-done
-##Check for database
-database_availability_check=`mysqlshow --user=root | grep -ow "$MYSQL_DATABASE"`
-if [ "$database_availability_check" == "$MYSQL_DATABASE" ]; then
-exit 1
-else
-mysqladmin -u root password $MYSQL_ROOT_PASSWORD
-mysql -u root -p$MYSQL_ROOT_PASSWORD -e "create database $MYSQL_DATABASE;"
-mysql -u root -p$MYSQL_ROOT_PASSWORD -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$MYSQL_ROOT_PASSWORD';"
+
+# Set ownership of Prestashop directories to the web user.
+# This is necessary for the application to write to these directories at runtime.
+chown -R "$user":"$user" /home/"$user"/www/hotelcommerce/config
+chown -R "$user":"$user" /home/"$user"/www/hotelcommerce/log
+chown -R "$user":"$user" /home/"$user"/www/hotelcommerce/img
+chown -R "$user":"$user" /home/"$user"/www/hotelcommerce/mails
+chown -R "$user":"$user" /home/"$user"/www/hotelcommerce/modules
+chown -R "$user":"$user" /home/"$user"/www/hotelcommerce/themes
+chown -R "$user":"$user" /home/"$user"/www/hotelcommerce/translations
+chown -R "$user":"$user" /home/"$user"/www/hotelcommerce/upload
+chown -R "$user":"$user" /home/"$user"/www/hotelcommerce/download
+chown -R "$user":"$user" /home/"$user"/www/hotelcommerce/cache
+
+# Stop this script from running again via supervisor.
 supervisorctl stop update_credentials && supervisorctl remove update_credentials
-fi
