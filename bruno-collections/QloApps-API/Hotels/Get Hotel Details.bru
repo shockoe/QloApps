@@ -1,0 +1,54 @@
+meta {
+  name: Get Hotel Details
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}{{apiPath}}/hotels/1?output_format={{outputFormat}}
+  body: none
+  auth: none
+}
+
+auth:basic {
+  username: {{apiKey}}
+  password: 
+}
+
+docs {
+  # Get Hotel Details
+  
+  Retrieves detailed information for a specific hotel.
+  
+  ## Parameters
+  - `id` (path): Hotel ID
+  
+  ## Response
+  Returns complete hotel information including:
+  - Hotel details (name, description, address, contact)
+  - Policies and check-in/check-out times
+  - Associated room types and features
+  - Location coordinates
+  
+  ## Example Response
+  ```json
+  {
+    "hotel": {
+      "id": "1",
+      "hotel_name": "The Hotel Prime",
+      "description": "Hotel description...",
+      "address": "Hotel address",
+      "phone": "Phone number",
+      "email": "Email address",
+      "check_in": "12:00",
+      "check_out": "11:00",
+      "rating": "3",
+      "policies": "Hotel policies...",
+      "associations": {
+        "room_types": [{"id": "1"}, {"id": "2"}],
+        "hotel_features": [{"id": "1"}, {"id": "2"}]
+      }
+    }
+  }
+  ```
+}

@@ -1,0 +1,36 @@
+meta {
+  name: Get All Hotel Rooms
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}{{apiPath}}/hotel_rooms?display=full&output_format={{outputFormat}}
+  body: none
+  auth: inherit
+}
+
+params:query {
+  display: full
+  output_format: {{outputFormat}}
+}
+
+docs {
+  # Get All Hotel Rooms
+  
+  Retrieves a list of all individual room inventory in the system.
+  
+  ## Response
+  Returns a JSON object with a `rooms` array containing individual room IDs.
+  Individual rooms represent the actual inventory units that can be booked.
+  
+  ## Example Response
+  ```json
+  {
+    "rooms": [
+      {"id": 1}, {"id": 2}, {"id": 3}, {"id": 4}, {"id": 5},
+      {"id": 6}, {"id": 7}, {"id": 8}, {"id": 9}, {"id": 10}
+    ]
+  }
+  ```
+}

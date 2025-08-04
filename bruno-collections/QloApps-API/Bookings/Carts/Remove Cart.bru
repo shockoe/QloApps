@@ -1,0 +1,37 @@
+meta {
+  name: Remove Cart
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{baseUrl}}{{apiPath}}/carts/3?output_format={{outputFormat}}&display=full
+  body: none
+  auth: inherit
+}
+
+params:query {
+  output_format: {{outputFormat}}
+  display: full
+}
+
+docs {
+  # Create Cart
+  
+  Creates a new shopping cart for booking workflow.
+  
+  ## Required Fields
+  - `id_lang`: Language ID (1 for English)
+  - `id_currency`: Currency ID (1 for default currency)
+  - `id_customer`: Customer ID (use 0 for guest)
+  - `id_guest`: Guest ID for tracking
+  - `secure_key`: Security key for cart validation
+  
+  ## Response
+  Returns the created cart with assigned cart ID.
+  
+  ## Notes
+  - Cart must be created before adding booking items
+  - Use customer ID or guest ID depending on checkout type
+  - Secure key helps prevent cart tampering
+}

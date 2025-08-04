@@ -1,0 +1,66 @@
+meta {
+  name: Create Room Bookings
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}{{apiPath}}/room_bookings?output_format={{outputFormat}}&display=full
+  body: xml
+  auth: inherit
+}
+
+params:query {
+  output_format: {{outputFormat}}
+  display: full
+}
+
+body:xml {
+  <?xml version="1.0" encoding="UTF-8"?>
+  <qloapps xmlns:xlink="http://www.w3.org/1999/xlink">
+    <order>
+      <id_customer>2</id_customer>
+      <id_cart>10</id_cart>
+      <id_product>1</id_product>
+      <id_hotel>1</id_hotel>
+      <id_room>3</id_room>
+    </order>
+  </qloapps>
+}
+
+docs {
+  # Get Room Bookings
+  
+  Retrieves all confirmed room bookings in the system.
+  
+  ## Description
+  Room bookings represent confirmed reservations that have been processed
+  and completed through the booking system.
+  
+  ## Response
+  Returns an array of confirmed booking records.
+  
+  ## Example Response
+  ```json
+  []
+  ```
+  
+  When bookings exist:
+  ```json
+  {
+    "room_bookings": [
+      {
+        "id": "1",
+        "id_order": "1",
+        "id_hotel": "1",
+        "id_room": "1",
+        "date_from": "2025-07-01",
+        "date_to": "2025-07-05",
+        "adults": "2",
+        "children": "0",
+        "booking_status": "confirmed"
+      }
+    ]
+  }
+  ```
+}

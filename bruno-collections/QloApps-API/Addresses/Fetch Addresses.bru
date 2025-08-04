@@ -1,0 +1,30 @@
+meta {
+  name: Fetch Addresses
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}{{apiPath}}/addresses?output_format={{outputFormat}}&display=full
+  body: none
+  auth: inherit
+}
+
+params:query {
+  output_format: {{outputFormat}}
+  display: full
+}
+
+docs {
+  # Test Connection
+  
+  This endpoint tests the API connection and returns all available resources.
+  
+  ## Authentication
+  - Uses HTTP Basic Auth
+  - Username: API Key
+  - Password: Empty string
+  
+  ## Response
+  Returns a JSON array of all available API resources.
+}

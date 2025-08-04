@@ -1,0 +1,37 @@
+meta {
+  name: Get All Room Types
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}{{apiPath}}/hotel_room_types?display=full&output_format={{outputFormat}}
+  body: none
+  auth: inherit
+}
+
+params:query {
+  display: full
+  output_format: {{outputFormat}}
+}
+
+docs {
+  # Get All Room Types
+  
+  Retrieves a list of all room types available in the system.
+  
+  ## Response
+  Returns a JSON object with a `hotel_room_types` array containing room type IDs.
+  
+  ## Example Response
+  ```json
+  {
+    "hotel_room_types": [
+      {"id": 1},
+      {"id": 2},
+      {"id": 3},
+      {"id": 4}
+    ]
+  }
+  ```
+}

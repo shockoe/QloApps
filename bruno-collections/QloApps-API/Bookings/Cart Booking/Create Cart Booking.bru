@@ -1,0 +1,57 @@
+meta {
+  name: Create Cart Booking
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}{{apiPath}}/cart_bookings?output_format={{outputFormat}}
+  body: xml
+  auth: inherit
+}
+
+body:xml {
+  <?xml version="1.0" encoding="UTF-8"?>
+  <qloapps xmlns:xlink="http://www.w3.org/1999/xlink">
+    <cart_booking>
+      <id_cart>10</id_cart>
+      <id_room>3</id_room>
+      <id_hotel>1</id_hotel>
+      <id_customer>2</id_customer>
+      <id_currency>1</id_currency>
+      <quantity>1</quantity>
+      <date_from>2025-07-01</date_from>
+      <date_to>2025-07-04</date_to>
+      <adults>2</adults>
+      <children>0</children>
+      <booking_type>1</booking_type>
+      <id_product>1</id_product>
+    </cart_booking>
+  </qloapps>
+}
+
+docs {
+  # Create Cart Booking
+  
+  Adds a room to a customer's booking cart.
+  
+  ## Request Body (XML)
+  The request must be sent as XML with the following structure:
+  
+  - `id_cart`: Cart ID (required)
+  - `id_room`: Room ID to book (required)
+  - `id_hotel`: Hotel ID (required)
+  - `date_from`: Check-in date (YYYY-MM-DD format)
+  - `date_to`: Check-out date (YYYY-MM-DD format)
+  - `adults`: Number of adults (required)
+  - `children`: Number of children (optional, default 0)
+  
+  ## Response
+  Returns the created cart booking object with assigned ID.
+  
+  ## Notes
+  - This adds an item to the cart but doesn't confirm the booking
+  - Use order creation endpoints to convert cart items to confirmed bookings
+  - Dates must be in YYYY-MM-DD format
+  - Room availability should be checked beforehand
+}

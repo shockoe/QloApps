@@ -1,0 +1,25 @@
+meta {
+  name: Test Connection
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}{{apiPath}}?output_format={{outputFormat}}
+  body: none
+  auth: inherit
+}
+
+docs {
+  # Test Connection
+  
+  This endpoint tests the API connection and returns all available resources.
+  
+  ## Authentication
+  - Uses HTTP Basic Auth
+  - Username: API Key
+  - Password: Empty string
+  
+  ## Response
+  Returns a JSON array of all available API resources.
+}

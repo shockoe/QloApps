@@ -1,0 +1,52 @@
+meta {
+  name: Get Bookings
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}{{apiPath}}/bookings?output_format={{outputFormat}}&display=full
+  body: none
+  auth: inherit
+}
+
+params:query {
+  output_format: {{outputFormat}}
+  display: full
+  ~schema: sypnosis
+}
+
+docs {
+  # Get Cart Bookings
+  
+  Retrieves all items currently in booking carts (pending bookings).
+  
+  ## Description
+  Cart bookings represent rooms that customers have added to their cart
+  but haven't yet completed the booking process.
+  
+  ## Response
+  Returns an array of cart booking items. Empty array if no items in carts.
+  
+  ## Example Response
+  ```json
+  []
+  ```
+  
+  When cart items exist:
+  ```json
+  {
+    "cart_bookings": [
+      {
+        "id": "1",
+        "id_cart": "1",
+        "id_room": "1",
+        "date_from": "2025-07-01",
+        "date_to": "2025-07-05",
+        "adults": "2",
+        "children": "0"
+      }
+    ]
+  }
+  ```
+}

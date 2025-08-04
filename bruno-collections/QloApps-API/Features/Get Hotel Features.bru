@@ -1,0 +1,40 @@
+meta {
+  name: Get Hotel Features
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}{{apiPath}}/hotel_features?output_format={{outputFormat}}
+  body: none
+  auth: inherit
+}
+
+docs {
+  # Get Hotel Features
+  
+  Retrieves all available hotel features/amenities in the system.
+  
+  ## Description
+  Hotel features represent amenities and services offered by hotels
+  such as WiFi, pool, spa, parking, etc.
+  
+  ## Response
+  Returns a JSON object with `hotel_features` array containing feature IDs.
+  
+  ## Example Response
+  ```json
+  {
+    "hotel_features": [
+      {"id": 1},
+      {"id": 2},
+      {"id": 3}
+    ]
+  }
+  ```
+  
+  ## Notes
+  - Features are associated with hotels via the hotel details endpoint
+  - Individual feature details can be retrieved using the feature ID
+  - Features help customers filter and compare hotels
+}

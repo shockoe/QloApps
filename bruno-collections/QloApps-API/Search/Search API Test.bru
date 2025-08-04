@@ -1,0 +1,35 @@
+meta {
+  name: Search API Test
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}{{apiPath}}/search?language=English&query=hotel
+  body: none
+  auth: inherit
+}
+
+params:query {
+  language: English
+  query: hotel
+}
+
+docs {
+  # Search API Test
+  
+  Tests the search functionality endpoint.
+  
+  ## Description
+  The search endpoint provides search capabilities across the system.
+  This endpoint is read-only (GET only).
+  
+  ## Response
+  Returns search results or available search options.
+  
+  ## Notes
+  - This is a read-only endpoint
+  - May require additional parameters for specific searches
+  - Used for finding hotels, rooms, and availability
+  - Search parameters would typically include dates, location, occupancy
+}

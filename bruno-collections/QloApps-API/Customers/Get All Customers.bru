@@ -1,0 +1,41 @@
+meta {
+  name: Get All Customers
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}{{apiPath}}/customers?output_format={{outputFormat}}&display=full
+  body: none
+  auth: inherit
+}
+
+params:query {
+  output_format: {{outputFormat}}
+  display: full
+}
+
+docs {
+  # Get All Customers
+  
+  Retrieves a list of all customers in the system.
+  
+  ## Response
+  Returns a JSON object with a `customers` array containing customer IDs.
+  
+  ## Example Response
+  ```json
+  {
+    "customers": [
+      {"id": 1},
+      {"id": 2},
+      {"id": 3}
+    ]
+  }
+  ```
+  
+  ## Notes
+  - Contains all registered customers
+  - For guest bookings, see the `guests` endpoint
+  - Customer details can be retrieved using individual customer ID
+}

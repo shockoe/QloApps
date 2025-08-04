@@ -1,0 +1,52 @@
+meta {
+  name: Create Cart
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}{{apiPath}}/carts?output_format={{outputFormat}}
+  body: xml
+  auth: inherit
+}
+
+body:xml {
+  <?xml version="1.0" encoding="UTF-8"?>
+  <qloapps xmlns:xlink="http://www.w3.org/1999/xlink">
+    <cart>
+      <id_lang>1</id_lang>
+      <id_currency>1</id_currency>
+      <id_customer>2</id_customer>
+      <id_guest>1</id_guest>
+      <id_address_delivery>0</id_address_delivery>
+      <id_address_invoice>0</id_address_invoice>
+    </cart>
+  </qloapps>
+}
+
+docs {
+  # Create Cart
+  
+  Creates a new shopping cart for booking workflow.
+  
+  ## Required Fields
+  - `id_lang`: Language ID (1 for English)
+  - `id_currency`: Currency ID (1 for default currency)
+  - `id_customer`: Customer ID (use 0 for guest)
+  - `id_guest`: Guest ID for tracking
+  - `secure_key`: Security key for cart validation
+  
+  ## Response
+  Returns the created cart with assigned cart ID.
+  
+  ## Notes
+  - Cart must be created before adding booking items
+  - Use customer ID or guest ID depending on checkout type
+  - Secure key helps prevent cart tampering
+  
+  ## Known Issues
+  - Cart creation may produce PHP Notice warnings about associations
+  - These are non-fatal warnings; the cart is still created successfully
+  - Check response carefully - cart ID will be returned despite warnings
+  - For production use, consider creating carts via frontend interface
+}

@@ -1,0 +1,35 @@
+meta {
+  name: Get All Hotels
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}{{apiPath}}/hotels?output_format={{outputFormat}}
+  body: none
+  auth: none
+}
+
+auth:basic {
+  username: {{apiKey}}
+  password: 
+}
+
+docs {
+  # Get All Hotels
+  
+  Retrieves a list of all hotels in the system.
+  
+  ## Response
+  Returns a JSON object with a `hotels` array containing hotel IDs.
+  
+  ## Example Response
+  ```json
+  {
+    "hotels": [
+      {"id": 1},
+      {"id": 2}
+    ]
+  }
+  ```
+}

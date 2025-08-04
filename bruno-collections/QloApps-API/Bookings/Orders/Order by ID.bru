@@ -1,0 +1,54 @@
+meta {
+  name: Order by ID
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}{{apiPath}}/orders?output_format={{outputFormat}}&display=full&filter[id]=[1]
+  body: none
+  auth: inherit
+}
+
+params:query {
+  output_format: {{outputFormat}}
+  display: full
+  filter[id]: [1]
+}
+
+docs {
+  # Create Order
+  
+  Converts cart items into a confirmed booking order.
+  
+  ## Required Fields
+  - `id_customer`: Customer ID
+  - `id_cart`: Cart ID containing booking items
+  - `current_state`: Order state (1 = Payment accepted)
+  - `payment`: Payment method
+  - `total_paid`: Total amount paid
+  - `total_paid_tax_incl`: Total including tax
+  - `total_paid_tax_excl`: Total excluding tax
+  - `total_paid_real`: Actual amount received
+  - `id_currency`: Currency ID
+  - `id_lang`: Language ID
+  - `secure_key`: Security validation key
+  - `id_address_delivery`: Delivery address ID (required)
+  - `id_address_invoice`: Invoice address ID (required)
+  
+  ## Order States
+  - 1: Payment accepted
+  - 2: Processing
+  - 3: Shipped
+  - 6: Canceled
+  - 10: Awaiting payment
+  
+  ## Response
+  Returns the created order with booking confirmation details.
+  
+  ## Notes
+  - This finalizes the booking process
+  - Cart items become confirmed bookings
+  - Payment validation should be done before order creation
+  - Order creation triggers confirmation emails
+}

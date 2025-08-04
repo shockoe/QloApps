@@ -1,0 +1,29 @@
+meta {
+  name: Get Hotel Schema
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}{{apiPath}}/hotels?schema=synopsis&output_format={{outputFormat}}
+  body: none
+  auth: none
+}
+
+auth:basic {
+  username: {{apiKey}}
+  password: 
+}
+
+docs {
+  # Get Hotel Schema
+  
+  Retrieves the schema/structure for hotel objects, showing all available fields.
+  
+  ## Parameters
+  - `schema=synopsis`: Returns field structure
+  - `schema=blank`: Returns blank template for creation
+  
+  ## Response
+  Returns the hotel object structure with empty field definitions.
+}

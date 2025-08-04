@@ -1,0 +1,55 @@
+meta {
+  name: Create Customer
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}{{apiPath}}/customers?output_format={{outputFormat}}
+  body: xml
+  auth: inherit
+}
+
+body:xml {
+  <?xml version="1.0" encoding="UTF-8"?>
+  <qloapps xmlns:xlink="http://www.w3.org/1999/xlink">
+    <customer>
+      <id_default_group>3</id_default_group>
+      <id_lang>1</id_lang>
+      <firstname>John</firstname>
+      <lastname>Doe</lastname>
+      <email>john.doe@example.com</email>
+      <phone>+1234567890</phone>
+      <passwd>password123</passwd>
+      <active>1</active>
+    </customer>
+  </qloapps>
+}
+
+docs {
+  # Create Customer
+  
+  Creates a new customer account in the system.
+  
+  ## Request Body (XML)
+  Required fields:
+  - `firstname`: Customer's first name
+  - `lastname`: Customer's last name
+  - `email`: Unique email address
+  - `phone`: Customer's phone number (required)
+  - `passwd`: Password (will be hashed)
+  - `id_default_group`: Customer group ID (typically 3 for customers)
+  - `id_lang`: Language ID (1 for English)
+  - `active`: Account status (1 = active, 0 = inactive)
+  
+  ## Response
+  Returns the created customer object with assigned customer ID.
+  
+  ## Notes
+  - Email must be unique in the system
+  - Phone number is required for hotel booking system
+  - Password will be automatically hashed
+  - Default group ID 3 is typically for regular customers
+  - Language ID 1 is typically English
+  - Phone format can include country code (e.g., +1234567890)
+}

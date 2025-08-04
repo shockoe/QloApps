@@ -1,0 +1,53 @@
+meta {
+  name: Get Room Bookings
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}{{apiPath}}/room_bookings?output_format={{outputFormat}}&display=full
+  body: none
+  auth: inherit
+}
+
+params:query {
+  output_format: {{outputFormat}}
+  display: full
+}
+
+docs {
+  # Get Room Bookings
+  
+  Retrieves all confirmed room bookings in the system.
+  
+  ## Description
+  Room bookings represent confirmed reservations that have been processed
+  and completed through the booking system.
+  
+  ## Response
+  Returns an array of confirmed booking records.
+  
+  ## Example Response
+  ```json
+  []
+  ```
+  
+  When bookings exist:
+  ```json
+  {
+    "room_bookings": [
+      {
+        "id": "1",
+        "id_order": "1",
+        "id_hotel": "1",
+        "id_room": "1",
+        "date_from": "2025-07-01",
+        "date_to": "2025-07-05",
+        "adults": "2",
+        "children": "0",
+        "booking_status": "confirmed"
+      }
+    ]
+  }
+  ```
+}

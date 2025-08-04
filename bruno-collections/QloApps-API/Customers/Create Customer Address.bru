@@ -1,0 +1,63 @@
+meta {
+  name: Create Customer Address
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}{{apiPath}}/addresses?output_format={{outputFormat}}
+  body: xml
+  auth: inherit
+}
+
+body:xml {
+  <?xml version="1.0" encoding="UTF-8"?>
+  <qloapps xmlns:xlink="http://www.w3.org/1999/xlink">
+    <address>
+      <id_customer>2</id_customer>
+      <id_country>21</id_country>
+      <id_state>1</id_state>
+      <alias>Home</alias>
+      <firstname>John</firstname>
+      <lastname>Doe</lastname>
+      <address1>123 Main Street</address1>
+      <postcode>12345</postcode>
+      <city>Demo City</city>
+      <phone>+1234567890</phone>
+    </address>
+  </qloapps>
+}
+
+docs {
+  # Create Customer Address
+  
+  Creates a new address for a customer (required for order creation).
+  
+  ## Request Body (XML)
+  Required fields:
+  - `id_customer`: Customer ID (must exist)
+  - `id_country`: Country ID (21 = United States)
+  - `alias`: Address alias/name (e.g., "Home", "Work")
+  - `firstname`: Customer's first name
+  - `lastname`: Customer's last name
+  - `address1`: Street address line 1
+  - `postcode`: Postal/ZIP code
+  - `city`: City name
+  
+  Optional fields:
+  - `id_state`: State/Province ID
+  - `address2`: Street address line 2
+  - `company`: Company name
+  - `phone`: Phone number
+  - `phone_mobile`: Mobile phone
+  
+  ## Response
+  Returns the created address object with assigned address ID.
+  
+  ## Notes
+  - Address must be created before order creation
+  - Both delivery and invoice addresses are required for orders
+  - Same address can be used for both delivery and invoice
+  - Country ID 21 is typically United States
+  - Address ID will be used in order creation as id_address_delivery and id_address_invoice
+}

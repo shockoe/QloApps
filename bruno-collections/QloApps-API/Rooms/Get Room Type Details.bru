@@ -1,0 +1,54 @@
+meta {
+  name: Get Room Type Details
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}{{apiPath}}/hotel_room_types/1?output_format={{outputFormat}}
+  body: none
+  auth: inherit
+}
+
+params:query {
+  output_format: {{outputFormat}}
+}
+
+docs {
+  # Get Room Type Details
+  
+  Retrieves detailed information for a specific room type.
+  
+  ## Parameters
+  - `id` (path): Room Type ID
+  
+  ## Response
+  Returns complete room type information including:
+  - Room type configuration (adults, children, max guests)
+  - Associated hotel ID and product ID
+  - Length of stay restrictions (min/max)
+  - Associated individual room inventory
+  
+  ## Example Response
+  ```json
+  {
+    "hotel_room_type": {
+      "id": "1",
+      "id_product": "1",
+      "id_hotel": "1",
+      "adults": "2",
+      "children": "2",
+      "max_adults": "2",
+      "max_children": "2",
+      "max_guests": "4",
+      "min_los": "1",
+      "max_los": "0",
+      "associations": {
+        "hotel_rooms": [
+          {"id": "1"}, {"id": "2"}, {"id": "3"}
+        ]
+      }
+    }
+  }
+  ```
+}

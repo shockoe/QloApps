@@ -1,0 +1,48 @@
+meta {
+  name: Get Feature Prices
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}{{apiPath}}/feature_prices?output_format={{outputFormat}}
+  body: none
+  auth: none
+}
+
+auth:basic {
+  username: {{apiKey}}
+  password: 
+}
+
+docs {
+  # Get Feature Prices
+  
+  Retrieves pricing information for room type features and date-based pricing rules.
+  
+  ## Description
+  Feature prices control dynamic pricing based on:
+  - Date ranges (seasonal pricing)
+  - Room type features
+  - Special pricing rules
+  - Demand-based adjustments
+  
+  ## Response
+  Returns pricing configuration for different room types and date ranges.
+  
+  ## Example Response
+  ```json
+  {
+    "feature_prices": [
+      {"id": 1},
+      {"id": 2}
+    ]
+  }
+  ```
+  
+  ## Notes
+  - This endpoint manages dynamic pricing rules
+  - Prices can vary by date, season, and demand
+  - Used for calculating actual booking costs
+  - Essential for availability and rate management
+}

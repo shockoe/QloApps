@@ -1,0 +1,61 @@
+meta {
+  name: Create Bookings
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}{{apiPath}}/bookings?output_format={{outputFormat}}
+  body: xml
+  auth: inherit
+}
+
+params:query {
+  output_format: {{outputFormat}}
+}
+
+body:xml {
+  <?xml version="1.0" encoding="UTF-8"?>
+  <qloapps xmlns:xlink="http://www.w3.org/1999/xlink">
+    <cart_booking>
+      <id_property>1</id_property>
+      <id_language>1</id_language>
+      
+    </cart_booking>
+  </qloapps>
+}
+
+docs {
+  # Get Cart Bookings
+  
+  Retrieves all items currently in booking carts (pending bookings).
+  
+  ## Description
+  Cart bookings represent rooms that customers have added to their cart
+  but haven't yet completed the booking process.
+  
+  ## Response
+  Returns an array of cart booking items. Empty array if no items in carts.
+  
+  ## Example Response
+  ```json
+  []
+  ```
+  
+  When cart items exist:
+  ```json
+  {
+    "cart_bookings": [
+      {
+        "id": "1",
+        "id_cart": "1",
+        "id_room": "1",
+        "date_from": "2025-07-01",
+        "date_to": "2025-07-05",
+        "adults": "2",
+        "children": "0"
+      }
+    ]
+  }
+  ```
+}

@@ -1,0 +1,52 @@
+# Git
+.git
+.gitignore
+
+# Environment files
+.env*
+
+# Documentation
+README.md
+*.md
+docs/readme_*.txt
+
+# Cache and temporary files - ensure index.php files are copied
+# Note: Prestashop installer checks for these index.php files
+# cache/*
+# !cache/index.php
+# log/*
+# !log/index.php
+# upload/*
+# !upload/index.php
+
+# Installation directory (needed for initial setup)
+# install/
+
+# Configuration files that will be created during setup
+# config/settings.inc.php
+
+# Node modules and development files
+node_modules/
+*.log
+.DS_Store
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Backup files
+*.bak
+*.backup
+
+# API Docs
+bruno-collections/
+# Docker files
+DOCKER_README.md
+docker-compose.yml
+.dockerignore
+Dockerfile
+restart-docker.sh
+start-docker.sh
+stop-docker.sh
