@@ -1,0 +1,19 @@
+meta {
+  name: Availability Search
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/external/availability?hotel_id=1&check_in=2025-10-01&check_out=2025-10-05&adults=2&children=1
+  body: none
+  auth: inherit
+}
+
+params:query {
+  hotel_id: 1
+  check_in: 2025-10-01
+  check_out: 2025-10-05
+  adults: 2
+  children: 1
+}

@@ -1,0 +1,24 @@
+meta {
+  name: Make Reservation
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/external/make-reservation
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "cart_token": "{{cart_token}}",
+    "payment_method": "mock_payment",
+    "customer_info": {
+        "first_name": "John",
+        "last_name": "Doe",
+        "email": "john.doe@example.com",
+        "phone": "+1-555-123-4567"
+    }
+  }
+}
