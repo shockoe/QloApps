@@ -8,94 +8,98 @@ require_once(dirname(__FILE__).'/ExternalApiValidator.php');
 class ExternalCartManager
 {
     public function addOrUpdateCart($params)
-{
-    try {
-        // Validation
-        if (empty($params['hotel_id'])) {
-            throw new InvalidArgumentException('hotel_id is required');
-        }
-        if (empty($params['room_id'])) {
-            throw new InvalidArgumentException('room_id is required');
-        }
-        if (empty($params['check_in'])) {
-            throw new InvalidArgumentException('check_in is required');
-        }
-        if (empty($params['check_out'])) {
-            throw new InvalidArgumentException('check_out is required');
-        }
-        if (empty($params['adults'])) {
-            throw new InvalidArgumentException('adults is required');
-        }
-
-        ExternalApiValidator::validateDateRange($params['check_in'], $params['check_out']);
-        ExternalApiValidator::validateOccupancy($params['adults'], isset($params['children']) ? $params['children'] : 0);
-
-        // Load required classes (PrestaShop config should already be loaded)
-        require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelCartBookingData.php');
-        require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelRoomType.php');
-        require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelBranchInformation.php');
-        require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelRoomTypeFeaturePricing.php');
-        require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelHelper.php');
-        require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelRoomInformation.php');
-        require_once(dirname(__FILE__).'/ExternalRoomLockManager.php');
-
-        $context = Context::getContext();
-        
-        // Ensure context has currency set (may be null in webservice calls)
-        if (!$context->currency) {
-            $context->currency = new Currency(Configuration::get('PS_CURRENCY_DEFAULT'));
-        }
-
-        // Create a new cart if one doesn't exist
-        if (!$context->cart->id) {
-            if (Context::getContext()->cookie->id_guest)
-            {
-                $guest = new Guest(Context::getContext()->cookie->id_guest);
-                $context->cart->mobile_theme = $guest->mobile_theme;
+    {
+        try {
+            // Validation
+            if (empty($params['hotel_id'])) {
+                throw new InvalidArgumentException('hotel_id is required');
             }
-            // Set currency for the cart
-            $context->cart->id_currency = $context->currency->id;
-            $context->cart->add();
-            if ($context->cart->id)
-                $context->cookie->id_cart = (int)$context->cart->id;
-        }
+            if (empty($params['room_id'])) {
+                throw new InvalidArgumentException('room_id is required');
+            }
+            if (empty($params['check_in'])) {
+                throw new InvalidArgumentException('check_in is required');
+            }
+            if (empty($params['check_out'])) {
+                throw new InvalidArgumentException('check_out is required');
+            }
+            if (empty($params['adults'])) {
+                throw new InvalidArgumentException('adults is required');
+            }
+            if (empty($params['customer_id'])) {
+                throw new InvalidArgumentException('customer_id is required');
+            }
+            if (empty($params['secure_key'])) {
+                throw new InvalidArgumentException('secure_key is required');
+            }
 
-        // Get customer
-        $customer = null;
-        if (!empty($params['customer_id'])) {
+            ExternalApiValidator::validateDateRange($params['check_in'], $params['check_out']);
+            ExternalApiValidator::validateOccupancy($params['adults'], isset($params['children']) ? $params['children'] : 0);
+
+            // Load required classes (PrestaShop config should already be loaded)
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelCartBookingData.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelRoomType.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelBranchInformation.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelRoomTypeFeaturePricing.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelHelper.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelRoomInformation.php');
+            require_once(dirname(__FILE__).'/ExternalRoomLockManager.php');
+
+            $context = Context::getContext();
+            
+            // Ensure context has currency set (may be null in webservice calls)
+            if (!$context->currency) {
+                $context->currency = new Currency(Configuration::get('PS_CURRENCY_DEFAULT'));
+            }
+
+            // Validate customer
             $customer = new Customer((int)$params['customer_id']);
-        }
-        if (!Validate::isLoadedObject($customer) && !empty($params['customer_email'])) {
-            $customer = Customer::getCustomersByEmail($params['customer_email']);
-            if (!empty($customer)) {
-                $customer = new Customer((int)$customer[0]['id_customer']);
-            } else {
-                $customer = new Customer();
-                $customer->email = $params['customer_email'];
-                $customer->firstname = 'Guest';
-                $customer->lastname = 'Guest';
-                $customer->passwd = Tools::encrypt(Tools::passwdGen());
-                $customer->add();
+            if (!Validate::isLoadedObject($customer) || $customer->secure_key !== $params['secure_key']) {
+                throw new Exception('Invalid customer ID or secure key.');
             }
-        }
-        if (Validate::isLoadedObject($customer)) {
+
+            // Set customer in context
             $context->customer = $customer;
-            $context->cart->id_customer = $customer->id;
-            $context->cart->secure_key = $customer->secure_key;
+            $context->cookie->id_customer = (int)$customer->id;
+            $context->cookie->customer_lastname = $customer->lastname;
+            $context->cookie->customer_firstname = $customer->firstname;
+            $context->cookie->logged = 1;
+            $context->cookie->passwd = $customer->passwd;
+            $context->cookie->email = $customer->email;
+            $context->cookie->is_guest = $customer->is_guest;
+            $context->cookie->write();
+
+            // Load or create cart for the validated customer
+            if (!Validate::isLoadedObject($context->cart) || $context->cart->id_customer != $customer->id) {
+                $id_cart = (int)Db::getInstance()->getValue(
+                    'SELECT id_cart FROM '._DB_PREFIX_.'cart WHERE id_customer = '.(int)$customer->id.' ORDER BY date_add DESC'
+                );
+                if ($id_cart) {
+                    $context->cart = new Cart($id_cart);
+                } else {
+                    $context->cart = new Cart();
+                    $context->cart->id_shop_group = (int)$context->shop->id_shop_group;
+                    $context->cart->id_shop = (int)$context->shop->id;
+                    $context->cart->id_customer = (int)$customer->id;
+                    $context->cart->id_currency = (int)$context->currency->id;
+                    $context->cart->id_lang = (int)$context->language->id;
+                    $context->cart->secure_key = $customer->secure_key;
+                    $context->cart->add();
+                }
+            }
             $context->cart->update();
-        }
 
-        $objBooking = new HotelCartBookingData();
+            $objBooking = new HotelCartBookingData();
 
-        $occupancy = array(
-            array(
-                'adults' => $params['adults'],
-                'children' => isset($params['children']) ? $params['children'] : 0,
-                'child_ages' => isset($params['child_ages']) ? $params['child_ages'] : [],
-            )
-        );
+            $occupancy = array(
+                array(
+                    'adults' => $params['adults'],
+                    'children' => isset($params['children']) ? $params['children'] : 0,
+                    'child_ages' => isset($params['child_ages']) ? $params['child_ages'] : [],
+                )
+            );
 
-        $roomDemand = isset($params['extra_demands']) ? json_encode($params['extra_demands']) : '';
+            $roomDemand = isset($params['extra_demands']) ? json_encode($params['extra_demands']) : '';
 
         // Acquire lock before checking availability and adding to cart
         $lockResult = ExternalRoomLockManager::lockRoom(

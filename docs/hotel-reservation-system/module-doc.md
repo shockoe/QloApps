@@ -45,10 +45,12 @@ The `externalhotelreservationsystem` module provides a robust API interface for 
 ### 2.4. `ExternalCartManager.php` (Add to Cart)
 
 *   **API Endpoint:** Handles the `add-to-cart` endpoint.
-*   **Input Validation:** Validates `hotel_id`, `room_id`, `check_in`, `check_out`, and `adults`.
-*   **Cart & Customer Management:**
-    *   Creates a new PrestaShop cart if one doesn't exist.
-    *   Associates the cart with an existing customer (by ID or email) or creates a new guest customer.
+*   **Input Validation:** Validates `hotel_id`, `room_id`, `check_in`, `check_out`, `adults`, **`customer_id`**, and **`secure_key`**.
+*   **Customer & Cart Management:**
+    *   **Validates the provided `customer_id` and `secure_key` against an existing customer account.**
+    *   Sets the PrestaShop `Context` to the authenticated customer.
+    *   Loads an existing cart for the customer or creates a new one, ensuring it's associated with the validated customer.
+    *   **Anonymous or guest cart creation is no longer permitted.**
 *   **Room Locking Integration:**
     *   **Integrates directly with `ExternalRoomLockManager` to acquire a temporary lock on the selected room *before* adding it to the cart.** This is vital for preventing race conditions in a multi-channel booking environment.
     *   Releases the lock immediately upon successful cart addition or if an error occurs.
