@@ -5,22 +5,16 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/api/availability
+  url: {{baseUrl}}/api/availability?check_in=2025-10-01&check_out=2025-10-05&adults=2&hotel_id=1&children=0&room_type=2
   body: none
   auth: inherit
 }
 
-query {
-  date_from: 2024-01-15
-  date_to: 2024-01-17
-  hotel_cat_id: 5
-  location_category_id: 3
-  occupancy[0][adults]: 2
-  occupancy[0][children]: 1
-  occupancy[0][child_ages][0]: 8
-  max_order_date: 2024-12-31
-  search_available: 1
-  search_partial: 0
-  only_search_data: 0
-  output_format: JSON
+params:query {
+  check_in: 2025-10-01
+  check_out: 2025-10-05
+  adults: 2
+  hotel_id: 1
+  children: 0
+  room_type: 2
 }
