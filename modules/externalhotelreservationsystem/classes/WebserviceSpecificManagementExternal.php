@@ -25,7 +25,7 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
             
             // Determine endpoint from URL structure or parameters
             // For now, default to availability (like the existing system)
-            $endpoint = isset($params['endpoint']) ? $params['endpoint'] : 'availability';
+            $endpoint = isset($params['url']) ? str_replace('external/', '', $params['url']) : 'availability';
             
             $this->logMessage('Detected endpoint: ' . $endpoint);
             
@@ -88,7 +88,7 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
             $manager = new ExternalCartManager();
             $input = Tools::file_get_contents('php://input');
             $this->logMessage('Add to Cart Raw Input: ' . $input);
-            $result = $manager->addToCart(json_decode($input, true));
+            $result = $manager->addOrUpdateCart(json_decode($input, true));
             $this->logMessage('Exiting handleAddToCart() method. Result: ' . json_encode($result));
             
             $this->output = json_encode($result);

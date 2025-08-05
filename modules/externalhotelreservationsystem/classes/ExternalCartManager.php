@@ -1,4 +1,8 @@
 <?php
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 require_once(dirname(__FILE__).'/ExternalApiValidator.php');
 
 class ExternalCartManager
@@ -26,15 +30,21 @@ class ExternalCartManager
             ExternalApiValidator::validateDateRange($params['check_in'], $params['check_out']);
             ExternalApiValidator::validateOccupancy($params['adults'], isset($params['children']) ? $params['children'] : 0);
 
-            // Include PrestaShop config and required classes
-            require_once(dirname(__FILE__).'/../../../config/config.inc.php');
-            require_once(dirname(__FILE__).'/../../hotelreservationsystem/classes/HotelCartBookingData.php');
-            require_once(dirname(__FILE__).'/../../hotelreservationsystem/classes/HotelRoomType.php');
-            require_once(dirname(__FILE__).'/../../hotelreservationsystem/classes/HotelBranchInformation.php');
-            require_once(dirname(__FILE__).'/../../hotelreservationsystem/classes/HotelRoomTypeFeaturePricing.php');
-            require_once(dirname(__FILE__).'/../../hotelreservationsystem/classes/HotelHelper.php');
+            // Load required classes (PrestaShop config should already be loaded)
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelCartBookingData.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelRoomType.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelBranchInformation.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelRoomTypeFeaturePricing.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelHelper.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelRoomInformation.php');
+            require_once(dirname(__FILE__).'/ExternalRoomLockManager.php');
 
             $context = Context::getContext();
+            
+            // Ensure context has currency set (may be null in webservice calls)
+            if (!$context->currency) {
+                $context->currency = new Currency(Configuration::get('PS_CURRENCY_DEFAULT'));
+            }
 
             // Create a new cart if one doesn't exist
             if (!$context->cart->id) {
@@ -43,6 +53,8 @@ class ExternalCartManager
                     $guest = new Guest(Context::getContext()->cookie->id_guest);
                     $context->cart->mobile_theme = $guest->mobile_theme;
                 }
+                // Set currency for the cart
+                $context->cart->id_currency = $context->currency->id;
                 $context->cart->add();
                 if ($context->cart->id)
                     $context->cookie->id_cart = (int)$context->cart->id;
@@ -85,33 +97,67 @@ class ExternalCartManager
 
             $roomDemand = isset($params['extra_demands']) ? json_encode($params['extra_demands']) : '';
 
-            $objRoom = new HotelRoomInformation($params['room_id']);
-
-            $add_result = $objBooking->addCartBookingData(
-                $objRoom->id_product,
-                $occupancy,
-                $params['hotel_id'],
+            // REAL-TIME ROOM AVAILABILITY VALIDATION
+            // Check if room is currently locked by any booking process (admin, frontend, other API calls)
+            $lockCheck = ExternalRoomLockManager::checkRoomLock(
+                $params['room_id'], 
+                $params['check_in'], 
+                $params['check_out']
+            );
+            
+            if ($lockCheck['is_locked']) {
+                throw new Exception('Room is currently unavailable: ' . $lockCheck['message']);
+            }
+            
+            // Lock the room to prevent race conditions
+            $lockResult = ExternalRoomLockManager::lockRoom(
+                $params['room_id'],
                 $params['check_in'],
                 $params['check_out'],
-                $roomDemand,
-                [],
-                [['id_room' => $params['room_id']]],
-                $context->cart->id
+                'external_api',
+                'api_key_' . (isset($_SERVER['PHP_AUTH_USER']) ? $_SERVER['PHP_AUTH_USER'] : 'unknown')
             );
+            
+            if (!$lockResult['success']) {
+                throw new Exception('Unable to secure room booking: ' . $lockResult['error']);
+            }
+            
+            $roomLockId = $lockResult['lock_id'];
+            
+            try {
+                $objRoom = new HotelRoomInformation($params['room_id']);
 
-            if (!$add_result) {
-                throw new Exception('Failed to add room to cart');
+                $add_result = $objBooking->addCartBookingData(
+                    $objRoom->id_product,
+                    $occupancy,
+                    $params['hotel_id'],
+                    $params['check_in'],
+                    $params['check_out'],
+                    $roomDemand,
+                    [],
+                    [['id_room' => $params['room_id']]],
+                    $context->cart->id
+                );
+                
+                if (!$add_result) {
+                    // Release lock if cart addition fails
+                    ExternalRoomLockManager::releaseLock($roomLockId);
+                    throw new Exception('Failed to add room to cart');
+                }
+                
+                // Keep lock active until cart timeout or conversion to order
+                // Lock will auto-expire based on LOCK_DURATION
+                
+            } catch (Exception $e) {
+                // Release lock on any error
+                ExternalRoomLockManager::releaseLock($roomLockId);
+                throw $e;
             }
 
-            $cart_token = bin2hex(random_bytes(32));
-            Db::getInstance()->insert('htl_external_cart_tokens', array(
-                'cart_token' => $cart_token,
-                'id_cart' => (int)$context->cart->id,
-                'id_customer' => (int)$context->customer->id,
-                'expires_at' => date('Y-m-d H:i:s', strtotime('+1 hour')),
-            ));
+            // Generate a simple cart token based on cart ID and timestamp for now
+            $cart_token = md5($context->cart->id . time());
 
-            $response = $this->formatResponse($params, $context, $cart_token);
+            $response = $this->formatResponse($params, $context, $cart_token, $roomLockId);
 
             return $response;
 
@@ -124,7 +170,7 @@ class ExternalCartManager
         }
     }
 
-    private function formatResponse($params, $context, $cart_token)
+    private function formatResponse($params, $context, $cart_token, $roomLockId = null)
     {
         $hotelInfo = (new HotelBranchInformation())->hotelBranchInfoById((int)$params['hotel_id']);
         $roomTypeInfo = (new HotelRoomType())->getRoomTypeInfoByIdProduct((new HotelRoomInformation($params['room_id']))->id_product);
@@ -135,7 +181,7 @@ class ExternalCartManager
             $params['check_out']
         );
 
-        return array(
+        $response = array(
             'success' => true,
             'timestamp' => date('c'),
             'cart_id' => $context->cart->id,
@@ -148,7 +194,7 @@ class ExternalCartManager
                 'room' => array(
                     'id_room' => (int)$params['room_id'],
                     'room_num' => (new HotelRoomInformation($params['room_id']))->room_num,
-                    'room_type_name' => $roomTypeInfo['room_type_name'],
+                    'room_type_name' => isset($roomTypeInfo['room_type_name']) ? $roomTypeInfo['room_type_name'] : '',
                 ),
                 'dates' => array(
                     'check_in' => $params['check_in'],
@@ -172,5 +218,16 @@ class ExternalCartManager
             'cart_token' => $cart_token,
             'expires_at' => date('c', strtotime('+1 hour')),
         );
+        
+        // Add room lock information for tracking
+        if ($roomLockId) {
+            $response['room_lock'] = array(
+                'lock_id' => $roomLockId,
+                'locked_until' => date('c', time() + ExternalRoomLockManager::LOCK_DURATION),
+                'message' => 'Room is temporarily reserved for your booking'
+            );
+        }
+        
+        return $response;
     }
 }
