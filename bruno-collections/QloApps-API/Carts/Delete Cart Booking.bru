@@ -1,0 +1,24 @@
+meta {
+  name: Delete Cart Booking
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/api/cart_bookings/:cartId?output_format={{outputFormat}}&display=full
+  body: none
+  auth: inherit
+}
+
+params:query {
+  output_format: {{outputFormat}}
+  display: full
+}
+
+params:path {
+  cartId: 15
+}
+
+settings {
+  encodeUrl: true
+}

@@ -1,0 +1,20 @@
+meta {
+  name: Get all cart bookings
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/cart_bookings?output_format={{outputFormat}}&display=full
+  body: none
+  auth: inherit
+}
+
+params:query {
+  output_format: {{outputFormat}}
+  display: full
+}
+
+settings {
+  encodeUrl: true
+}

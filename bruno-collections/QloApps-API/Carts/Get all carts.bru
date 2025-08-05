@@ -1,0 +1,20 @@
+meta {
+  name: Get all carts
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/carts?output_format={{outputFormat}}&display=full
+  body: none
+  auth: inherit
+}
+
+params:query {
+  output_format: {{outputFormat}}
+  display: full
+}
+
+settings {
+  encodeUrl: true
+}

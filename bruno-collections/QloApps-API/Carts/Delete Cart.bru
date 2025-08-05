@@ -1,0 +1,24 @@
+meta {
+  name: Delete Cart
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{baseUrl}}/api/carts/:cartId?output_format={{outputFormat}}&display=full
+  body: none
+  auth: inherit
+}
+
+params:query {
+  output_format: {{outputFormat}}
+  display: full
+}
+
+params:path {
+  cartId: 16
+}
+
+settings {
+  encodeUrl: true
+}
