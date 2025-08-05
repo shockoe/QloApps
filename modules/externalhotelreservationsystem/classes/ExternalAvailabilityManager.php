@@ -51,6 +51,7 @@ class ExternalAvailabilityManager
                 'search_partial' => 0,
                 'search_booked' => 0,
                 'search_unavai' => 0,
+                'search_cart_rms' => 1,
                 'occupancy' => array(
                     array(
                         'adults' => $adults,
@@ -59,8 +60,21 @@ class ExternalAvailabilityManager
                 )
             );
 
+            // For external API, we need to exclude ALL rooms currently in carts
+            // Override cart parameters to exclude all cart rooms globally
+            $bookingParams['id_cart'] = 0;  // No specific cart
+            $bookingParams['id_guest'] = 0; // No specific guest
+            
             $bookingDetail = new HotelBookingDetail();
             $bookingData = $bookingDetail->getBookingData($bookingParams);
+            
+            // Additional cart filtering: manually exclude rooms that are in ANY cart
+            if (isset($bookingData['rm_data'])) {
+                $cartRooms = $this->getRoomsInAllCarts((int)$params['hotel_id'], $params['check_in'], $params['check_out']);
+                if (!empty($cartRooms)) {
+                    $bookingData = $this->filterOutCartRooms($bookingData, $cartRooms);
+                }
+            }
 
             if (empty($bookingData) || empty($bookingData['rm_data'])) {
                  return array(
@@ -158,5 +172,51 @@ class ExternalAvailabilityManager
             ],
             'room_type' => isset($params['room_type']) ? (int)$params['room_type'] : 0,
         );
+    }
+    
+    private function getRoomsInAllCarts($hotelId, $checkIn, $checkOut)
+    {
+        $sql = 'SELECT DISTINCT cbd.`id_room`, cbd.`id_product`
+                FROM `'._DB_PREFIX_.'htl_cart_booking_data` AS cbd
+                WHERE cbd.`id_hotel` = '.(int)$hotelId.'
+                AND cbd.`is_refunded` = 0 
+                AND cbd.`is_back_order` = 0
+                AND (
+                    (cbd.`date_from` <= \''.pSQL($checkOut).'\' AND cbd.`date_to` > \''.pSQL($checkIn).'\')
+                )';
+        
+        $result = Db::getInstance()->executeS($sql);
+        return $result ? $result : array();
+    }
+    
+    private function filterOutCartRooms($bookingData, $cartRooms)
+    {
+        if (empty($cartRooms)) {
+            return $bookingData;
+        }
+        
+        // Create a lookup array for faster searching
+        $cartRoomLookup = array();
+        foreach ($cartRooms as $cartRoom) {
+            $cartRoomLookup[$cartRoom['id_room']] = true;
+        }
+        
+        // Filter out cart rooms from available rooms
+        if (isset($bookingData['rm_data'])) {
+            foreach ($bookingData['rm_data'] as $roomTypeIndex => &$roomType) {
+                if (isset($roomType['data']['available'])) {
+                    $filteredAvailable = array();
+                    foreach ($roomType['data']['available'] as $room) {
+                        // Only include rooms that are NOT in any cart
+                        if (!isset($cartRoomLookup[$room['id_room']])) {
+                            $filteredAvailable[] = $room;
+                        }
+                    }
+                    $roomType['data']['available'] = $filteredAvailable;
+                }
+            }
+        }
+        
+        return $bookingData;
     }
 }
