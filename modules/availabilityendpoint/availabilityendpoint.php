@@ -42,6 +42,7 @@ class AvailabilityEndpoint extends Module
             'availability' => [
                 'description' => 'Hotel availability search',
                 'specific_management' => true,
+                'specific_management_class' => 'WebserviceSpecificManagementAvailability',
             ],
         ];
     }

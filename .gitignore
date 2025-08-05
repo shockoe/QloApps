@@ -259,3 +259,6 @@ robots.txt
 
 # ENV
 .env
+
+# Hot-reload
+admin576bmdvwq/
