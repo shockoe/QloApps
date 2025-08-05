@@ -1,4 +1,3 @@
-
 # Editors, tools and OS's
 
 .buildpath
@@ -262,3 +261,4 @@ robots.txt
 
 # Hot-reload
 admin576bmdvwq/
+modules/externalhotelreservationsystem/logs/debug.log
