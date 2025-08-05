@@ -26,6 +26,8 @@ The `externalhotelreservationsystem` module provides a robust API interface for 
     *   `ExternalCartManager` for `add-to-cart` requests.
     *   `ExternalReservationManager` for `make-reservation` requests.
     *   `ExternalBookingManager` for `booking` details requests.
+    *   `ExternalCustomerManager` for `customer-signup` requests.
+    *   `ExternalCustomerLoginManager` for `customer-login` requests.
 *   **HTTP Method Enforcement:** Ensures that each endpoint is accessed with the correct HTTP method (GET or POST).
 *   **Error Handling:** Provides a standardized `errorResponse()` method for consistent API error reporting.
 *   **Logging:** Includes a `logMessage()` utility for debugging and tracking API requests and responses.
@@ -70,7 +72,25 @@ The `externalhotelreservationsystem` module provides a robust API interface for 
 *   **Booking Retrieval:** Queries `htl_external_booking_refs` to find the corresponding PrestaShop order and loads its details.
 *   **Response:** Formats and returns a detailed JSON response containing all relevant booking information (hotel, room, dates, occupancy, customer, pricing, payment, etc.).
 
-### 2.7. `ExternalRoomLockManager.php` (Concurrency Control)
+### 2.7. `ExternalCustomerManager.php` (Customer Signup)
+
+*   **API Endpoint:** Handles the `customer-signup` endpoint.
+*   **Input Validation:** Validates `email`, `passwd`, `firstname`, `lastname`, and other optional customer fields.
+*   **Customer Creation:** Creates a new PrestaShop customer account, reusing logic from `AuthController.php`.
+*   **Context and Cart Update:** Updates the PrestaShop `Context` with the newly created customer and associates any existing cart with this customer.
+*   **Confirmation Email:** Sends a confirmation email to the customer if configured in PrestaShop.
+*   **Response:** Returns a JSON response indicating success or failure, along with the new customer's ID and basic details upon successful creation.
+
+### 2.8. `ExternalCustomerLoginManager.php` (Customer Login)
+
+*   **API Endpoint:** Handles the `customer-login` endpoint.
+*   **Input Validation:** Validates `email` and `passwd`.
+*   **Customer Authentication:** Authenticates the customer against PrestaShop's user database.
+*   **Context and Cart Management:** Updates the PrestaShop `Context` with the logged-in customer and ensures a cart is associated with them (either loads an existing one or creates a new one).
+*   **Information Retrieval:** Gathers essential customer and cart information (e.g., customer ID, email, cart ID, cart totals, products in cart) relevant for subsequent booking operations.
+*   **Response:** Returns a JSON response with success status, customer details, and cart information.
+
+### 2.9. `ExternalRoomLockManager.php` (Concurrency Control)
 
 *   **Purpose:** Prevents double-bookings and manages concurrency across all booking channels (admin, frontend, external API).
 *   **Locking Mechanism:**
@@ -101,14 +121,16 @@ The module introduces custom database tables to support its functionality:
 
 ## 4. Interaction Flow (Example: External Booking)
 
-1.  **Search Availability:** An external system calls the `availability` endpoint (handled by `ExternalAvailabilityManager`) to find available rooms. The system ensures that rooms currently in *any* cart are not shown as available.
-2.  **Add to Cart:** The external system selects a room and calls the `add-to-cart` endpoint (handled by `ExternalCartManager`).
+1.  **Customer Signup (Optional):** An external system can call the `customer-signup` endpoint (handled by `ExternalCustomerManager`) to create a new customer account. This allows users to register before proceeding with booking.
+2.  **Customer Login (Optional):** An external system can call the `customer-login` endpoint (handled by `ExternalCustomerLoginManager`) to authenticate an existing customer. Upon successful login, relevant customer and cart information is returned, which can be used for subsequent booking operations.
+3.  **Search Availability:** An external system calls the `availability` endpoint (handled by `ExternalAvailabilityManager`) to find available rooms. The system ensures that rooms currently in *any* cart are not shown as available.
+4.  **Add to Cart:** The external system selects a room and calls the `add-to-cart` endpoint (handled by `ExternalCartManager`).
     *   `ExternalCartManager` first attempts to acquire a lock on the specific room for the given dates using `ExternalRoomLockManager`.
     *   If successful, the room is added to a PrestaShop cart, and the lock is immediately released.
     *   A `cart_token` is returned to the external system.
-3.  **Make Reservation:** The external system proceeds to finalize the booking by calling the `make-reservation` endpoint (handled by `ExternalReservationManager`), providing the `cart_token` and payment details.
+5.  **Make Reservation:** The external system proceeds to finalize the booking by calling the `make-reservation` endpoint (handled by `ExternalReservationManager`), providing the `cart_token` and payment details.
     *   `ExternalReservationManager` retrieves the cart, creates a PrestaShop order, and generates the hotel-specific booking details.
     *   An external `booking_id` is generated and stored for future reference.
-4.  **Retrieve Booking Details:** The external system can later query the `booking` endpoint (handled by `ExternalBookingManager`) using the `booking_id` to retrieve the full details of the confirmed reservation.
+6.  **Retrieve Booking Details:** The external system can later query the `booking` endpoint (handled by `ExternalBookingManager`) using the `booking_id` to retrieve the full details of the confirmed reservation.
 
 This architecture ensures a clear separation of concerns, robust validation, and effective concurrency management for external integrations with the PrestaShop hotel reservation system.

@@ -38,6 +38,10 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
                     return $this->handleMakeReservation($method);
                 case 'booking':
                     return $this->handleBookingDetails($method, $params);
+                case 'customer-signup':
+                    return $this->handleCustomerSignup($method);
+                case 'customer-login':
+                    return $this->handleCustomerLogin($method);
                 default:
                     // Default to availability for backward compatibility
                     return $this->handleAvailability($method);
@@ -143,6 +147,62 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
             return $this->output;
         } catch (Exception $e) {
             $this->logMessage('Exception in handleBookingDetails: ' . $e->getMessage(), 'error');
+            return $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
+        }
+    }
+
+    protected function handleCustomerSignup($method)
+    {
+        $this->logMessage('Entering handleCustomerSignup() method. Method: ' . $method);
+        if ($method !== 'POST') {
+            $this->logMessage('Method Not Allowed for customer-signup: ' . $method, 'error');
+            return $this->errorResponse('Method Not Allowed', 405);
+        }
+        
+        try {
+            require_once(dirname(__FILE__).'/ExternalCustomerManager.php');
+            $manager = new ExternalCustomerManager();
+            $input = Tools::file_get_contents('php://input');
+            $this->logMessage('Customer Signup Raw Input: ' . $input);
+            $decoded_input = json_decode($input, true);
+            $_POST = $decoded_input; // Populate $_POST for PrestaShop internal functions
+            $this->logMessage('$_POST (after decode): ' . json_encode($_POST));
+            $this->logMessage('$_REQUEST: ' . json_encode($_REQUEST));
+            $result = $manager->createCustomer($decoded_input);
+            $this->logMessage('Exiting handleCustomerSignup() method. Result: ' . json_encode($result));
+            
+            $this->output = json_encode($result);
+            return $this->output;
+        } catch (Exception $e) {
+            $this->logMessage('Exception in handleCustomerSignup: ' . $e->getMessage(), 'error');
+            return $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
+        }
+    }
+
+    protected function handleCustomerLogin($method)
+    {
+        $this->logMessage('Entering handleCustomerLogin() method. Method: ' . $method);
+        if ($method !== 'POST') {
+            $this->logMessage('Method Not Allowed for customer-login: ' . $method, 'error');
+            return $this->errorResponse('Method Not Allowed', 405);
+        }
+        
+        try {
+            require_once(dirname(__FILE__).'/ExternalCustomerLoginManager.php');
+            $manager = new ExternalCustomerLoginManager();
+            $input = Tools::file_get_contents('php://input');
+            $this->logMessage('Customer Login Raw Input: ' . $input);
+            $decoded_input = json_decode($input, true);
+            $_POST = $decoded_input; // Populate $_POST for PrestaShop internal functions
+            $this->logMessage('$_POST (after decode): ' . json_encode($_POST));
+            $this->logMessage('$_REQUEST: ' . json_encode($_REQUEST));
+            $result = $manager->loginCustomer($decoded_input);
+            $this->logMessage('Exiting handleCustomerLogin() method. Result: ' . json_encode($result));
+            
+            $this->output = json_encode($result);
+            return $this->output;
+        } catch (Exception $e) {
+            $this->logMessage('Exception in handleCustomerLogin: ' . $e->getMessage(), 'error');
             return $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
         }
     }

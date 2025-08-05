@@ -1,0 +1,28 @@
+meta {
+  name: Customer Login
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/external/customer-login
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "testuser@shockoe.com",
+    "passwd": "Password123!"
+  }
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.success) {
+    bru.setEnvVar('CUSTOMER_EMAIL', res.body.email);
+    bru.setEnvVar('CUSTOMER_ID', res.body.customer_id);
+    console.log('Customer created successfully:', res.body.email);
+  } else {
+    console.error('Customer signup failed:', res.body.error || res.body);
+  }
+}
