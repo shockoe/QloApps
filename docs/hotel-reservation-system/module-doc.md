@@ -52,7 +52,8 @@ The `externalhotelreservationsystem` module provides a robust API interface for 
     *   Loads an existing cart for the customer or creates a new one, ensuring it's associated with the validated customer.
     *   **Anonymous or guest cart creation is no longer permitted.**
 *   **Room Locking Integration:**
-    *   **Integrates directly with `ExternalRoomLockManager` to acquire a temporary lock on the selected room *before* adding it to the cart.** This is vital for preventing race conditions in a multi-channel booking environment.
+    *   **Enforces a single booking per cart by checking if the cart is empty before adding a new room.**
+*   **Integrates directly with `ExternalRoomLockManager` to acquire a temporary lock on the selected room *before* adding it to the cart.** This is vital for preventing race conditions in a multi-channel booking environment.
     *   Releases the lock immediately upon successful cart addition or if an error occurs.
 *   **Cart Addition:** Uses `HotelCartBookingData::addCartBookingData()` to add the room to the PrestaShop cart.
 *   **Response:** Provides a JSON response with cart ID, customer ID, booking details, a `cart_token`, and room lock information.
@@ -69,7 +70,7 @@ The `externalhotelreservationsystem` module provides a robust API interface for 
     *   Validates and processes `guest_details` (title, first name, last name, phone, email, etc.).
     *   Loads or creates a `CustomerGuestDetail` object and links it to the cart.
 *   **Order Creation:** Uses the `bankwire` module (as a proxy for "Pay at Location") to validate the order and create a new PrestaShop order with an "awaiting payment" status.
-*   **Hotel Booking Detail Creation:** Calls `HotelBookingDetail::createHotelBookingsFromOrder()` to generate the specific hotel booking records.
+*   **Hotel Booking Detail Creation:** After the PrestaShop order is created, the system generates the specific hotel booking records. It correctly maps each booking to its corresponding order line item to ensure data integrity, even when multiple room types are booked in a single order.
 *   **External Reference:** Generates a unique `booking_id` and stores it in `htl_external_booking_refs` for external tracking.
 *   **Response:** Returns a comprehensive JSON response with all reservation details, including hotel, room, dates, occupancy, customer, pricing, and payment status.
 

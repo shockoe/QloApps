@@ -51,6 +51,7 @@ class ExternalReservationManager
             require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelRoomType.php');
             require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelHelper.php');
             require_once(_PS_MODULE_DIR_.'bankwire/bankwire.php');
+            require_once(_PS_ROOT_DIR_.'/classes/Carrier.php');
 
             // 2. Set PrestaShop Context
             $context = Context::getContext();
@@ -114,7 +115,7 @@ class ExternalReservationManager
                     $context->cart->id_carrier = (int)$default_carrier->id;
                 } else {
                     // Fallback if default carrier is not found, try to find any active carrier
-                    $carriers = Carrier::getCarriers($context->language->id, true, false, false, null, PS_CARRIER_MODE_ALL);
+                    $carriers = Carrier::getCarriers($context->language->id, true, false, false, null, Carrier::ALL);
                     if (!empty($carriers)) {
                         $context->cart->id_carrier = (int)$carriers[0]['id_carrier'];
                     } else {
@@ -217,12 +218,25 @@ class ExternalReservationManager
                 throw new Exception('No hotel booking data found in the cart.');
             }
 
+            // Create a map of product IDs to their corresponding order detail IDs
+            $orderDetailMap = [];
+            foreach ($order->getProductsDetail() as $orderDetail) {
+                $orderDetailMap[$orderDetail['id_product']] = $orderDetail['id_order_detail'];
+            }
+
             foreach ($cart_booking_data as $booking_data) {
                 $objBookingDetail = new HotelBookingDetail();
 
-                $objBookingDetail->id_product = (int)$booking_data['id_product'];
+                $id_product = (int)$booking_data['id_product'];
+                $objBookingDetail->id_product = $id_product;
                 $objBookingDetail->id_order = (int)$order->id;
-                $objBookingDetail->id_order_detail = (int)$order->product_list[0]['id_order_detail']; // Assuming single product in cart for simplicity, needs refinement for multiple
+
+                // Correctly assign the order detail ID from the map
+                if (!isset($orderDetailMap[$id_product])) {
+                    throw new Exception('Could not find a matching order detail for product ID: ' . $id_product);
+                }
+                $objBookingDetail->id_order_detail = (int)$orderDetailMap[$id_product];
+
                 $objBookingDetail->id_cart = (int)$cart->id;
                 $objBookingDetail->id_room = (int)$booking_data['id_room'];
                 $objBookingDetail->id_hotel = (int)$booking_data['id_hotel'];

@@ -1,0 +1,19 @@
+meta {
+  name: 4 - Empty Cart
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/external/empty-cart
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "cart_id": "1",
+    "customer_id": "2",
+    "secure_key": "5afeef3cf85dcae545ac6bbc612fe0b9"
+  }
+}

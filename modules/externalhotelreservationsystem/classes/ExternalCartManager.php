@@ -89,6 +89,16 @@ class ExternalCartManager
             }
             $context->cart->update();
 
+            // Enforce single booking per cart rule
+            $cartBookingData = new HotelCartBookingData();
+            if ($cartBookingData->getCartCurrentDataByCartId($context->cart->id)) {
+                return [
+                    'success' => false,
+                    'error' => 'Your cart already contains a booking. Only one room can be booked per order.',
+                    'error_code' => 'CART_ALREADY_FULL'
+                ];
+            }
+
             $objBooking = new HotelCartBookingData();
 
             $occupancy = array(
@@ -164,39 +174,39 @@ class ExternalCartManager
 
     private function formatResponse($params, $context, $cart_token, $roomLockId = null)
     {
-        $hotelInfo = (new HotelBranchInformation())->hotelBranchInfoById((int)$params['hotel_id']);
-        $roomTypeInfo = (new HotelRoomType())->getRoomTypeInfoByIdProduct((new HotelRoomInformation($params['room_id']))->id_product);
+        $cart_bookings = (new HotelCartBookingData())->getCartCurrentDataByCartId($context->cart->id);
+        $booking_details = [];
 
-        $roomPrice = HotelRoomTypeFeaturePricing::getRoomTypeTotalPrice(
-            $roomTypeInfo['id_product'],
-            $params['check_in'],
-            $params['check_out']
-        );
+        foreach ($cart_bookings as $booking) {
+            $hotelInfo = (new HotelBranchInformation())->hotelBranchInfoById((int)$booking['id_hotel']);
+            $roomInfo = new HotelRoomInformation((int)$booking['id_room']);
+            $roomTypeInfo = (new HotelRoomType())->getRoomTypeInfoByIdProduct($roomInfo->id_product);
 
-        $response = array(
-            'success' => true,
-            'timestamp' => date('c'),
-            'cart_id' => $context->cart->id,
-            'customer_id' => $context->customer->id,
-            'booking_details' => array(
+            $roomPrice = HotelRoomTypeFeaturePricing::getRoomTypeTotalPrice(
+                $roomInfo->id_product,
+                $booking['date_from'],
+                $booking['date_to']
+            );
+
+            $booking_details[] = array(
                 'hotel' => array(
-                    'id_hotel' => (int)$params['hotel_id'],
+                    'id_hotel' => (int)$booking['id_hotel'],
                     'hotel_name' => $hotelInfo['hotel_name'],
                 ),
                 'room' => array(
-                    'id_room' => (int)$params['room_id'],
-                    'room_num' => (new HotelRoomInformation($params['room_id']))->room_num,
+                    'id_room' => (int)$booking['id_room'],
+                    'room_num' => $roomInfo->room_num,
                     'room_type_name' => isset($roomTypeInfo['room_type_name']) ? $roomTypeInfo['room_type_name'] : '',
                 ),
                 'dates' => array(
-                    'check_in' => $params['check_in'],
-                    'check_out' => $params['check_out'],
-                    'nights' => HotelHelper::getNumberOfDays($params['check_in'], $params['check_out']),
+                    'check_in' => $booking['date_from'],
+                    'check_out' => $booking['date_to'],
+                    'nights' => HotelHelper::getNumberOfDays($booking['date_from'], $booking['date_to']),
                 ),
                 'occupancy' => array(
-                    'adults' => (int)$params['adults'],
-                    'children' => isset($params['children']) ? (int)$params['children'] : 0,
-                    'child_ages' => isset($params['child_ages']) ? $params['child_ages'] : [],
+                    'adults' => (int)$booking['adults'],
+                    'children' => (int)$booking['children'],
+                    'child_ages' => json_decode($booking['child_ages']),
                 ),
                 'pricing' => array(
                     'room_total' => $roomPrice['total_price_tax_excl'],
@@ -205,8 +215,16 @@ class ExternalCartManager
                     'total_tax_included' => $roomPrice['total_price_tax_incl'],
                     'currency' => $context->currency->iso_code,
                 ),
-                'extra_demands' => [], // To be implemented
-            ),
+                'extra_demands' => json_decode($booking['extra_demands']), // To be implemented
+            );
+        }
+
+        $response = array(
+            'success' => true,
+            'timestamp' => date('c'),
+            'cart_id' => $context->cart->id,
+            'customer_id' => $context->customer->id,
+            'booking_details' => $booking_details,
             'cart_token' => $cart_token,
             'expires_at' => date('c', strtotime('+1 hour')),
         );

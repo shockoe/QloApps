@@ -231,6 +231,15 @@ Content-Type: application/json
 ```json
 {
     "success": false,
+    "error": "Your cart already contains a booking. Only one room can be booked per order.",
+    "timestamp": "2024-03-15T10:30:00Z",
+    "error_code": "CART_ALREADY_FULL"
+}
+```
+
+```json
+{
+    "success": false,
     "error": "Room is no longer available for the selected dates",
     "timestamp": "2024-03-15T10:30:00Z",
     "error_code": "ROOM_NOT_AVAILABLE",

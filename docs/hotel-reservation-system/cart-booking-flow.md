@@ -76,7 +76,9 @@ $cartBookingData = array(
 ```
 
 #### Validation Steps
-1. **Room Availability Check**
+1. **Check if Cart is Empty**
+   - Verify that the cart does not already contain a booking.
+2. **Room Availability Check**
    - Verify room is not already booked for date range
    - Check room status is active
    - Validate against disable dates

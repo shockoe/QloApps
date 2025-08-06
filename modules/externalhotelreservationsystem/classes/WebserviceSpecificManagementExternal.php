@@ -42,6 +42,10 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
                     return $this->handleCustomerSignup($method);
                 case 'customer-login':
                     return $this->handleCustomerLogin($method);
+                case 'cart-details':
+                    return $this->handleCartDetails($method);
+                case 'empty-cart':
+                    return $this->handleEmptyCart($method);
                 default:
                     // Default to availability for backward compatibility
                     return $this->handleAvailability($method);
@@ -203,6 +207,54 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
             return $this->output;
         } catch (Exception $e) {
             $this->logMessage('Exception in handleCustomerLogin: ' . $e->getMessage(), 'error');
+            return $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
+        }
+    }
+
+    protected function handleCartDetails($method)
+    {
+        $this->logMessage('Entering handleCartDetails() method. Method: ' . $method);
+        if ($method !== 'POST') {
+            $this->logMessage('Method Not Allowed for cart-details: ' . $method, 'error');
+            return $this->errorResponse('Method Not Allowed', 405);
+        }
+        
+        try {
+            require_once(dirname(__FILE__).'/ExternalCartDetailsManager.php');
+            $manager = new ExternalCartDetailsManager();
+            $input = Tools::file_get_contents('php://input');
+            $this->logMessage('Cart Details Raw Input: ' . $input);
+            $result = $manager->getCartDetails(json_decode($input, true));
+            $this->logMessage('Exiting handleCartDetails() method. Result: ' . json_encode($result));
+            
+            $this->output = json_encode($result);
+            return $this->output;
+        } catch (Exception $e) {
+            $this->logMessage('Exception in handleCartDetails: ' . $e->getMessage(), 'error');
+            return $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
+        }
+    }
+
+    protected function handleEmptyCart($method)
+    {
+        $this->logMessage('Entering handleEmptyCart() method. Method: ' . $method);
+        if ($method !== 'POST') {
+            $this->logMessage('Method Not Allowed for empty-cart: ' . $method, 'error');
+            return $this->errorResponse('Method Not Allowed', 405);
+        }
+        
+        try {
+            require_once(dirname(__FILE__).'/ExternalEmptyCartManager.php');
+            $manager = new ExternalEmptyCartManager();
+            $input = Tools::file_get_contents('php://input');
+            $this->logMessage('Empty Cart Raw Input: ' . $input);
+            $result = $manager->emptyCart(json_decode($input, true));
+            $this->logMessage('Exiting handleEmptyCart() method. Result: ' . json_encode($result));
+            
+            $this->output = json_encode($result);
+            return $this->output;
+        } catch (Exception $e) {
+            $this->logMessage('Exception in handleEmptyCart: ' . $e->getMessage(), 'error');
             return $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
         }
     }

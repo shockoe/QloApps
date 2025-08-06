@@ -126,7 +126,7 @@ public function cartBookingDataForMail($order)
 
 **File:** `/modules/hotelreservationsystem/classes/HotelBookingDetail.php:1500-1800`
 
-When a PrestaShop order is created, hotel bookings are automatically generated:
+When a PrestaShop order is created, hotel bookings are automatically generated. For each item in the cart, a corresponding `htl_booking_detail` record is created. This ensures that every booking is precisely linked to its specific order line item, maintaining data integrity even in complex orders with multiple room types.
 
 ```php
 public function createHotelBookingsFromOrder($idOrder)
