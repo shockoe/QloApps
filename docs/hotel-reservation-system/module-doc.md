@@ -60,9 +60,15 @@ The `externalhotelreservationsystem` module provides a robust API interface for 
 ### 2.5. `ExternalReservationManager.php` (Reservation Creation)
 
 *   **API Endpoint:** Handles the `make-reservation` endpoint.
-*   **Input Validation:** Requires `cart_token` and `payment_method`.
-*   **Cart Retrieval:** Fetches the PrestaShop cart using the provided `cart_token` from a custom database table (`htl_external_cart_tokens`).
-*   **Order Creation:** Simulates a payment (using `MockPaymentModule`) and creates a new PrestaShop order from the cart.
+*   **Input Validation:** Requires `id_cart`, `customer_id`, `secure_key`, `payment_method`, and `guest_details`.
+*   **Customer & Cart Management:**
+    *   Validates the provided `customer_id` and `secure_key`.
+    *   Loads the `Cart` and `Customer` objects and sets them in the PrestaShop `Context`.
+    *   **Automated Address Handling:** Automatically retrieves the customer's default address. If no default address exists, a minimal one is created and assigned to the cart.
+*   **Guest Details Management:**
+    *   Validates and processes `guest_details` (title, first name, last name, phone, email, etc.).
+    *   Loads or creates a `CustomerGuestDetail` object and links it to the cart.
+*   **Order Creation:** Uses the `bankwire` module (as a proxy for "Pay at Location") to validate the order and create a new PrestaShop order with an "awaiting payment" status.
 *   **Hotel Booking Detail Creation:** Calls `HotelBookingDetail::createHotelBookingsFromOrder()` to generate the specific hotel booking records.
 *   **External Reference:** Generates a unique `booking_id` and stores it in `htl_external_booking_refs` for external tracking.
 *   **Response:** Returns a comprehensive JSON response with all reservation details, including hotel, room, dates, occupancy, customer, pricing, and payment status.
