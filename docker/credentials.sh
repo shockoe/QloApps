@@ -98,5 +98,6 @@ EOF
 # Create missing security index.php files
 create_security_files
 
+
 # Stop this script from running again via supervisor.
 supervisorctl stop update_credentials && supervisorctl remove update_credentials

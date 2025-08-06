@@ -68,10 +68,11 @@ RUN a2enmod rewrite headers \
                 </Directory>  ' >> /etc/apache2/apache2.conf \
     && sed -i "s@/var/www/html@/home/${user}/www/hotelcommerce@g" /etc/apache2/sites-enabled/000-default.conf
 
-# Copy supervisord configuration and credentials script
+# Copy supervisord configuration and scripts
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/credentials.sh /etc/credentials.sh
-RUN chmod a+x /etc/credentials.sh
+COPY docker/module_installer.sh /etc/module_installer.sh
+RUN chmod a+x /etc/credentials.sh /etc/module_installer.sh
 
 # Copy application files from the builder stage
 COPY --from=builder /home/${user}/www/hotelcommerce /home/${user}/www/hotelcommerce
