@@ -12,13 +12,17 @@ post {
 
 body:json {
   {
-    "cart_token": "{{cart_token}}",
-    "payment_method": "mock_payment",
-    "customer_info": {
-        "first_name": "John",
-        "last_name": "Doe",
-        "email": "john.doe@example.com",
-        "phone": "+1-555-123-4567"
+    "id_cart": 20,
+    "customer_id": 7,
+    "secure_key": "708c390f358883af3d4353b663e5348d",
+    "payment_method": "Bank Wire",
+    "guest_details": {
+      "id_gender": 1,
+      "firstname": "John",
+      "lastname": "Doe",
+      "email": "testuser@shockoe.com",
+      "phone": "+1-555-123-4567",
+      "birthday": "1990-01-01"
     }
   }
 }

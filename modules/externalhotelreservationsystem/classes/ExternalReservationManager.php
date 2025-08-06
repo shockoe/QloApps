@@ -6,62 +6,250 @@ class ExternalReservationManager
     public function makeReservation($params)
     {
         try {
-            // Validation
-            if (empty($params['cart_token'])) {
-                throw new InvalidArgumentException('cart_token is required');
+            // 1. Input Validation
+            if (empty($params['id_cart'])) {
+                throw new InvalidArgumentException('id_cart is required');
+            }
+            if (empty($params['customer_id'])) {
+                throw new InvalidArgumentException('customer_id is required');
+            }
+            if (empty($params['secure_key'])) {
+                throw new InvalidArgumentException('secure_key is required');
             }
             if (empty($params['payment_method'])) {
                 throw new InvalidArgumentException('payment_method is required');
             }
+            if (empty($params['guest_details'])) {
+                throw new InvalidArgumentException('guest_details are required');
+            }
+
+            // Validate guest_details
+            $guest_details = $params['guest_details'];
+            if (empty($guest_details['firstname']) || !Validate::isName($guest_details['firstname'])) {
+                throw new InvalidArgumentException('Guest firstname is required and must be valid.');
+            }
+            if (empty($guest_details['lastname']) || !Validate::isName($guest_details['lastname'])) {
+                throw new InvalidArgumentException('Guest lastname is required and must be valid.');
+            }
+            if (empty($guest_details['email']) || !Validate::isEmail($guest_details['email'])) {
+                throw new InvalidArgumentException('Guest email is required and must be valid.');
+            }
+            if (empty($guest_details['phone']) || !Validate::isPhoneNumber($guest_details['phone'])) {
+                throw new InvalidArgumentException('Guest phone is required and must be valid.');
+            }
+            if (isset($guest_details['birthday']) && !Validate::isBirthDate($guest_details['birthday'])) {
+                throw new InvalidArgumentException('Guest birthday must be a valid date (YYYY-MM-DD).');
+            }
 
             // Include PrestaShop config and required classes
             require_once(dirname(__FILE__).'/../../../config/config.inc.php');
-            require_once(dirname(__FILE__).'/../../hotelreservationsystem/classes/HotelCartBookingData.php');
-            require_once(dirname(__FILE__).'/../../hotelreservationsystem/classes/HotelBookingDetail.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelCartBookingData.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelBookingDetail.php');
+            require_once(_PS_ROOT_DIR_ . '/classes/CustomerGuestDetail.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelBranchInformation.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelRoomInformation.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelRoomType.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelHelper.php');
+            require_once(_PS_MODULE_DIR_.'bankwire/bankwire.php');
 
+            // 2. Set PrestaShop Context
             $context = Context::getContext();
 
-            // Get cart from token
-            $cart_data = Db::getInstance()->getRow('SELECT * FROM `'._DB_PREFIX_.'htl_external_cart_tokens` WHERE `cart_token` = "'.pSQL($params['cart_token']).'" AND `expires_at` > NOW()');
-            if (!$cart_data) {
-                throw new Exception('Invalid or expired cart token');
+            $customer = new Customer((int)$params['customer_id']);
+            if (!Validate::isLoadedObject($customer) || $customer->secure_key !== $params['secure_key']) {
+                throw new Exception('Invalid customer ID or secure key.');
             }
 
-            $cart = new Cart((int)$cart_data['id_cart']);
-            if (!Validate::isLoadedObject($cart)) {
-                throw new Exception('Cart not found');
+            $cart = new Cart((int)$params['id_cart']);
+            if (!Validate::isLoadedObject($cart) || (int)$cart->id_customer !== (int)$customer->id) {
+                throw new Exception('Cart not found or does not belong to the provided customer.');
             }
 
+            $context->customer = $customer;
             $context->cart = $cart;
-            $context->customer = new Customer((int)$cart->id_customer);
+            if (!Validate::isLoadedObject($context->language)) {
+                $context->language = new Language(Configuration::get('PS_LANG_DEFAULT'));
+            }
+            if (!Validate::isLoadedObject($context->shop)) {
+                $context->shop = new Shop(Configuration::get('PS_SHOP_DEFAULT'));
+            }
+            if (!Validate::isLoadedObject($context->currency)) {
+                $context->currency = new Currency(Configuration::get('PS_CURRENCY_DEFAULT'));
+            }
 
-            // Create order
-            $payment_module = new MockPaymentModule();
-            $payment_module->active = true;
+            // 3. Customer Address Handling (Automated)
+            $id_address_delivery = (int)Db::getInstance()->getValue(
+                'SELECT id_address FROM '._DB_PREFIX_.'address WHERE id_customer = '.(int)$customer->id.' AND `active` = 1 ORDER BY date_add DESC'
+            );
+            $id_address_invoice = $id_address_delivery; // Default to same for invoice
 
-            $total = (float)$cart->getOrderTotal(true, Cart::BOTH);
+            if (!$id_address_delivery) {
+                $new_address = new Address();
+                $new_address->id_customer = (int)$customer->id;
+                $new_address->alias = 'Booking Address for ' . substr($customer->firstname, 0, 1) . '. ' . $customer->lastname;
+                $new_address->firstname = $customer->firstname;
+                $new_address->lastname = $customer->lastname;
+                $new_address->address1 = 'N/A'; // Placeholder
+                $new_address->postcode = '00000'; // Placeholder
+                $new_address->city = 'N/A'; // Placeholder
+                $new_address->id_country = (int)Configuration::get('PS_COUNTRY_DEFAULT'); // Use default country
+                $new_address->phone = $customer->phone; // Use customer's phone from signup/login if available
+                $new_address->phone_mobile = $customer->phone; // Use customer's phone from signup/login if available
+
+                if (!$new_address->add()) {
+                    throw new Exception('Failed to create default address for customer.');
+                }
+                $id_address_delivery = (int)$new_address->id;
+                $id_address_invoice = $id_address_delivery;
+            }
+
+            $context->cart->id_address_delivery = $id_address_delivery;
+            $context->cart->id_address_invoice = $id_address_invoice;
+            $context->cart->id_currency = $context->currency->id; // Explicitly set cart currency
+            $context->cart->update(); // Save the updated address IDs and currency to the cart
+
+            // 4. Guest Details Management
+            $id_customer_guest_detail = CustomerGuestDetail::getCustomerGuestByEmail($guest_details['email'], $customer->id);
+            if ($id_customer_guest_detail) {
+                $objCustomerGuestDetail = new CustomerGuestDetail($id_customer_guest_detail);
+            } else {
+                $objCustomerGuestDetail = new CustomerGuestDetail();
+            }
+
+            $objCustomerGuestDetail->id_gender = isset($guest_details['id_gender']) ? (int)$guest_details['id_gender'] : 0;
+            $objCustomerGuestDetail->firstname = $guest_details['firstname'];
+            $objCustomerGuestDetail->lastname = $guest_details['lastname'];
+            $objCustomerGuestDetail->email = $guest_details['email'];
+            $objCustomerGuestDetail->phone = $guest_details['phone'];
+            $objCustomerGuestDetail->id_customer = (int)$customer->id;
+            if (isset($guest_details['birthday'])) {
+                $objCustomerGuestDetail->birthday = $guest_details['birthday'];
+            }
+            if (isset($guest_details['company'])) {
+                $objCustomerGuestDetail->company = $guest_details['company'];
+            }
+            if (isset($guest_details['address1'])) {
+                $objCustomerGuestDetail->address1 = $guest_details['address1'];
+            }
+            if (isset($guest_details['postcode'])) {
+                $objCustomerGuestDetail->postcode = $guest_details['postcode'];
+            }
+            if (isset($guest_details['city'])) {
+                $objCustomerGuestDetail->city = $guest_details['city'];
+            }
+            if (isset($guest_details['id_country'])) {
+                $objCustomerGuestDetail->id_country = (int)$guest_details['id_country'];
+            } else {
+                $objCustomerGuestDetail->id_country = (int)Configuration::get('PS_COUNTRY_DEFAULT');
+            }
+            if (isset($guest_details['id_state'])) {
+                $objCustomerGuestDetail->id_state = (int)$guest_details['id_state'];
+            }
+            if (isset($guest_details['other'])) {
+                $objCustomerGuestDetail->other = $guest_details['other'];
+            }
+
+            if (!$objCustomerGuestDetail->save()) {
+                throw new Exception('Failed to save guest details.');
+            }
+
+            // Link guest details to cart
+            CustomerGuestDetail::deleteCustomerGuestInCart($cart->id);
+            $objCustomerGuestDetail->saveCustomerGuestInCart($cart->id, $objCustomerGuestDetail->id);
+
+            // 5. Payment Module Integration ("Pay at Location")
+            $payment_module = Module::getInstanceByName('bankwire');
+            if (!Validate::isLoadedObject($payment_module) || !$payment_module->active) {
+                throw new Exception('Bank Wire payment module is not active or installed.');
+            }
+
+            $id_order_state = Configuration::get('PS_OS_AWAITING_PAYMENT');
+            $total = (float)$context->cart->getOrderTotal(true, Cart::BOTH);
+            $payment_method_name = $params['payment_method'];
 
             $payment_module->validateOrder(
-                (int)$cart->id,
-                Configuration::get('PS_OS_PAYMENT'),
+                (int)$context->cart->id,
+                (int)$id_order_state,
                 $total,
-                $params['payment_method'],
+                $payment_method_name,
                 null,
                 array(),
-                (int)$cart->id_currency,
+                (int)$context->cart->id_currency,
                 false,
-                $cart->secure_key
+                $context->cart->secure_key
             );
 
-            $order = new Order($payment_module->currentOrder);
+            $order = new Order((int)$payment_module->currentOrder);
 
             if (!Validate::isLoadedObject($order)) {
-                throw new Exception('Failed to create order');
+                throw new Exception('Failed to create order after payment validation.');
             }
 
-            // Create booking detail
-            $objBookingDetail = new HotelBookingDetail();
-            $objBookingDetail->createHotelBookingsFromOrder($order->id, $cart->id);
+            if (!Validate::isLoadedObject($order)) {
+                throw new Exception('Failed to create order after payment validation.');
+            }
+
+            // 6. Post-Order Creation: Manually create hotel bookings from cart data
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelRoomInformation.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelBranchInformation.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelRoomType.php');
+            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelHelper.php');
+
+            $cart_booking_data = HotelCartBookingData::getBookingDataByCartId($cart->id);
+
+            if (empty($cart_booking_data)) {
+                throw new Exception('No hotel booking data found in the cart.');
+            }
+
+            foreach ($cart_booking_data as $booking_data) {
+                $objBookingDetail = new HotelBookingDetail();
+
+                $objBookingDetail->id_product = (int)$booking_data['id_product'];
+                $objBookingDetail->id_order = (int)$order->id;
+                $objBookingDetail->id_order_detail = (int)$order->product_list[0]['id_order_detail']; // Assuming single product in cart for simplicity, needs refinement for multiple
+                $objBookingDetail->id_cart = (int)$cart->id;
+                $objBookingDetail->id_room = (int)$booking_data['id_room'];
+                $objBookingDetail->id_hotel = (int)$booking_data['id_hotel'];
+                $objBookingDetail->id_customer = (int)$customer->id;
+                $objBookingDetail->booking_type = HotelBookingDetail::ALLOTMENT_AUTO; // Assuming auto allotment
+                $objBookingDetail->id_status = HotelBookingDetail::STATUS_ALLOTED; // Assuming allotted status
+                $objBookingDetail->comment = $booking_data['comment'];
+                $objBookingDetail->check_in = $booking_data['date_from'];
+                $objBookingDetail->check_out = $booking_data['date_to'];
+                $objBookingDetail->date_from = $booking_data['date_from'];
+                $objBookingDetail->date_to = $booking_data['date_to'];
+                $objBookingDetail->total_price_tax_excl = (float)$booking_data['total_price_tax_excl'];
+                $objBookingDetail->total_price_tax_incl = (float)$booking_data['total_price_tax_incl'];
+                $objBookingDetail->total_paid_amount = (float)$order->total_paid; // Assuming full payment for now
+                $objBookingDetail->is_back_order = 0;
+                $objBookingDetail->is_refunded = 0;
+                $objBookingDetail->is_cancelled = 0;
+
+                // Populate hotel and room information
+                $hotel_info = new HotelBranchInformation((int)$booking_data['id_hotel']);
+                $room_info = new HotelRoomInformation((int)$booking_data['id_room']);
+                $room_type_info = new HotelRoomType((int)$booking_data['id_product']);
+
+                $objBookingDetail->room_num = $room_info->room_num;
+                $objBookingDetail->room_type_name = $room_type_info->room_type_name[$context->language->id];
+                $objBookingDetail->hotel_name = $hotel_info->hotel_name;
+                $objBookingDetail->city = $hotel_info->city;
+                $objBookingDetail->state = (new State($hotel_info->id_state))->name;
+                $objBookingDetail->country = (new Country($hotel_info->id_country))->name[$context->language->id];
+                $objBookingDetail->zipcode = $hotel_info->postcode;
+                $objBookingDetail->phone = $hotel_info->phone;
+                $objBookingDetail->email = $hotel_info->email;
+                $objBookingDetail->check_in_time = $hotel_info->check_in_time;
+                $objBookingDetail->check_out_time = $hotel_info->check_out_time;
+                $objBookingDetail->planned_check_out = $booking_data['date_to'];
+                $objBookingDetail->adults = (int)$booking_data['adults'];
+                $objBookingDetail->children = (int)$booking_data['children'];
+                $objBookingDetail->child_ages = $booking_data['child_ages'];
+
+                if (!$objBookingDetail->add()) {
+                    throw new Exception('Failed to create hotel booking detail.');
+                }
+            }
 
             $booking_id = 'HTL-'.date('Y').'-'.sprintf('%06d', $order->id);
             Db::getInstance()->insert('htl_external_booking_refs', array(
@@ -70,6 +258,7 @@ class ExternalReservationManager
                 'confirmation_number' => $order->reference,
             ));
 
+            // 7. Response
             $response = $this->formatResponse($order, $booking_id);
 
             return $response;
