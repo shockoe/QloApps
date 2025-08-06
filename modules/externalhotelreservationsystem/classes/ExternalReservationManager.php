@@ -106,6 +106,22 @@ class ExternalReservationManager
             $context->cart->id_address_delivery = $id_address_delivery;
             $context->cart->id_address_invoice = $id_address_invoice;
             $context->cart->id_currency = $context->currency->id; // Explicitly set cart currency
+
+            // Set a default carrier for the cart if not already set
+            if (!$context->cart->id_carrier) {
+                $default_carrier = new Carrier(Configuration::get('PS_CARRIER_DEFAULT'));
+                if (Validate::isLoadedObject($default_carrier)) {
+                    $context->cart->id_carrier = (int)$default_carrier->id;
+                } else {
+                    // Fallback if default carrier is not found, try to find any active carrier
+                    $carriers = Carrier::getCarriers($context->language->id, true, false, false, null, PS_CARRIER_MODE_ALL);
+                    if (!empty($carriers)) {
+                        $context->cart->id_carrier = (int)$carriers[0]['id_carrier'];
+                    } else {
+                        throw new Exception('No active carriers found. Please configure a carrier in PrestaShop.');
+                    }
+                }
+            }
             $context->cart->update(); // Save the updated address IDs and currency to the cart
 
             // 4. Guest Details Management
@@ -251,17 +267,37 @@ class ExternalReservationManager
                 }
             }
 
-            $booking_id = 'HTL-'.date('Y').'-'.sprintf('%06d', $order->id);
-            Db::getInstance()->insert('htl_external_booking_refs', array(
-                'booking_id' => $booking_id,
-                'id_order' => (int)$order->id,
-                'confirmation_number' => $order->reference,
+            // Invalidate the old cart token
+            Db::getInstance()->delete('htl_external_cart_tokens', 'id_cart = '.(int)$cart->id);
+
+            // Create a new cart for the customer
+            $new_cart = new Cart();
+            $new_cart->id_shop_group = (int)$context->shop->id_shop_group;
+            $new_cart->id_shop = (int)$context->shop->id;
+            $new_cart->id_customer = (int)$customer->id;
+            $new_cart->id_currency = (int)$context->currency->id;
+            $new_cart->id_lang = (int)$context->language->id;
+            $new_cart->secure_key = $customer->secure_key;
+            if (!$new_cart->add()) {
+                throw new Exception('Failed to create a new cart after order creation.');
+            }
+
+            // Update context and cookie with the new cart
+            $context->cart = $new_cart;
+            $context->cookie->id_cart = (int)$new_cart->id;
+            $context->cookie->write(); // Ensure cookie is updated
+
+            // Generate a new cart token for the new cart
+            $new_cart_token = md5($new_cart->id . time() . rand());
+            Db::getInstance()->insert('htl_external_cart_tokens', array(
+                'cart_token' => pSQL($new_cart_token),
+                'id_cart' => (int)$new_cart->id,
+                'expires_at' => date('Y-m-d H:i:s', time() + (60 * 60 * 24)) // Token valid for 24 hours
             ));
 
             // 7. Response
             $response = $this->formatResponse($order, $booking_id);
-
-            return $response;
+            $response['new_cart_token'] = $new_cart_token;
 
         } catch (InvalidArgumentException $e) {
             error_log('ExternalReservationManager InvalidArgumentException: ' . $e->getMessage());
