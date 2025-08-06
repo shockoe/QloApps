@@ -63,7 +63,7 @@ class ExternalReservationManager
 
             $cart = new Cart((int)$params['id_cart']);
             if (!Validate::isLoadedObject($cart) || (int)$cart->id_customer !== (int)$customer->id) {
-                throw new Exception('Cart not found or does not belong to the provided customer.');
+                throw new InvalidArgumentException('Cart not found or does not belong to the provided customer.');
             }
 
             $context->customer = $customer;
@@ -108,6 +108,10 @@ class ExternalReservationManager
             $context->cart->id_address_invoice = $id_address_invoice;
             $context->cart->id_currency = $context->currency->id; // Explicitly set cart currency
 
+            if (!defined('PS_CARRIER_MODE_ALL')) {
+                define('PS_CARRIER_MODE_ALL', 0);
+            }
+
             // Set a default carrier for the cart if not already set
             if (!$context->cart->id_carrier) {
                 $default_carrier = new Carrier(Configuration::get('PS_CARRIER_DEFAULT'));
@@ -115,11 +119,40 @@ class ExternalReservationManager
                     $context->cart->id_carrier = (int)$default_carrier->id;
                 } else {
                     // Fallback if default carrier is not found, try to find any active carrier
-                    $carriers = Carrier::getCarriers($context->language->id, true, false, false, null, Carrier::ALL);
+                    $carriers = Carrier::getCarriers($context->language->id, true, false, false, null, Carrier::ALL_CARRIERS);
                     if (!empty($carriers)) {
                         $context->cart->id_carrier = (int)$carriers[0]['id_carrier'];
                     } else {
-                        throw new Exception('No active carriers found. Please configure a carrier in PrestaShop.');
+                        // If no carrier is found, create a default one for hotel bookings
+                        $carrier = new Carrier();
+                        $carrier->name = 'Hotel Reservation';
+                        $carrier->is_free = 1;
+                        $carrier->shipping_handling = 0;
+                        $carrier->need_range = 0;
+                        $carrier->active = 1;
+                        $carrier->deleted = 0;
+                        $carrier->shipping_external = true;
+                        $carrier->external_module_name = 'externalhotelreservationsystem';
+                        $carrier->shipping_method = Carrier::SHIPPING_METHOD_FREE;
+
+                        $languages = Language::getLanguages(true);
+                        foreach ($languages as $lang) {
+                            $carrier->delay[$lang['id_lang']] = 'Hotel Booking';
+                        }
+
+                        if ($carrier->add()) {
+                            $groups = Group::getGroups(true);
+                            foreach ($groups as $group) {
+                                Db::getInstance()->insert('carrier_group', [
+                                    'id_carrier' => (int)$carrier->id,
+                                    'id_group' => (int)$group['id_group']
+                                ]);
+                            }
+                            Configuration::updateValue('PS_CARRIER_DEFAULT', (int)$carrier->id);
+                            $context->cart->id_carrier = (int)$carrier->id;
+                        } else {
+                            throw new Exception('Failed to create a default carrier for hotel bookings.');
+                        }
                     }
                 }
             }
@@ -206,80 +239,18 @@ class ExternalReservationManager
                 throw new Exception('Failed to create order after payment validation.');
             }
 
-            // 6. Post-Order Creation: Manually create hotel bookings from cart data
-            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelRoomInformation.php');
-            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelBranchInformation.php');
-            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelRoomType.php');
-            require_once(_PS_MODULE_DIR_.'hotelreservationsystem/classes/HotelHelper.php');
+            // 6. Post-Order Creation: The hotel booking details are created by the original module's hook
 
-            $cart_booking_data = HotelCartBookingData::getBookingDataByCartId($cart->id);
+            // Generate a unique booking ID for external reference
+            $booking_id = 'HTL-' . date('Y') . '-' . $order->id . '-' . Tools::passwdGen(6, 'ALPHANUMERIC');
 
-            if (empty($cart_booking_data)) {
-                throw new Exception('No hotel booking data found in the cart.');
-            }
-
-            // Create a map of product IDs to their corresponding order detail IDs
-            $orderDetailMap = [];
-            foreach ($order->getProductsDetail() as $orderDetail) {
-                $orderDetailMap[$orderDetail['id_product']] = $orderDetail['id_order_detail'];
-            }
-
-            foreach ($cart_booking_data as $booking_data) {
-                $objBookingDetail = new HotelBookingDetail();
-
-                $id_product = (int)$booking_data['id_product'];
-                $objBookingDetail->id_product = $id_product;
-                $objBookingDetail->id_order = (int)$order->id;
-
-                // Correctly assign the order detail ID from the map
-                if (!isset($orderDetailMap[$id_product])) {
-                    throw new Exception('Could not find a matching order detail for product ID: ' . $id_product);
-                }
-                $objBookingDetail->id_order_detail = (int)$orderDetailMap[$id_product];
-
-                $objBookingDetail->id_cart = (int)$cart->id;
-                $objBookingDetail->id_room = (int)$booking_data['id_room'];
-                $objBookingDetail->id_hotel = (int)$booking_data['id_hotel'];
-                $objBookingDetail->id_customer = (int)$customer->id;
-                $objBookingDetail->booking_type = HotelBookingDetail::ALLOTMENT_AUTO; // Assuming auto allotment
-                $objBookingDetail->id_status = HotelBookingDetail::STATUS_ALLOTED; // Assuming allotted status
-                $objBookingDetail->comment = $booking_data['comment'];
-                $objBookingDetail->check_in = $booking_data['date_from'];
-                $objBookingDetail->check_out = $booking_data['date_to'];
-                $objBookingDetail->date_from = $booking_data['date_from'];
-                $objBookingDetail->date_to = $booking_data['date_to'];
-                $objBookingDetail->total_price_tax_excl = (float)$booking_data['total_price_tax_excl'];
-                $objBookingDetail->total_price_tax_incl = (float)$booking_data['total_price_tax_incl'];
-                $objBookingDetail->total_paid_amount = (float)$order->total_paid; // Assuming full payment for now
-                $objBookingDetail->is_back_order = 0;
-                $objBookingDetail->is_refunded = 0;
-                $objBookingDetail->is_cancelled = 0;
-
-                // Populate hotel and room information
-                $hotel_info = new HotelBranchInformation((int)$booking_data['id_hotel']);
-                $room_info = new HotelRoomInformation((int)$booking_data['id_room']);
-                $room_type_info = new HotelRoomType((int)$booking_data['id_product']);
-
-                $objBookingDetail->room_num = $room_info->room_num;
-                $objBookingDetail->room_type_name = $room_type_info->room_type_name[$context->language->id];
-                $objBookingDetail->hotel_name = $hotel_info->hotel_name;
-                $objBookingDetail->city = $hotel_info->city;
-                $objBookingDetail->state = (new State($hotel_info->id_state))->name;
-                $objBookingDetail->country = (new Country($hotel_info->id_country))->name[$context->language->id];
-                $objBookingDetail->zipcode = $hotel_info->postcode;
-                $objBookingDetail->phone = $hotel_info->phone;
-                $objBookingDetail->email = $hotel_info->email;
-                $objBookingDetail->check_in_time = $hotel_info->check_in_time;
-                $objBookingDetail->check_out_time = $hotel_info->check_out_time;
-                $objBookingDetail->planned_check_out = $booking_data['date_to'];
-                $objBookingDetail->adults = (int)$booking_data['adults'];
-                $objBookingDetail->children = (int)$booking_data['children'];
-                $objBookingDetail->child_ages = $booking_data['child_ages'];
-
-                if (!$objBookingDetail->add()) {
-                    throw new Exception('Failed to create hotel booking detail.');
-                }
-            }
+            // Store external booking reference
+            Db::getInstance()->insert('htl_external_booking_refs', [
+                'booking_id' => pSQL($booking_id),
+                'id_order' => (int)$order->id,
+                'confirmation_number' => pSQL($order->reference),
+                'external_ref' => 'API_BOOKING',
+            ]);
 
             // Invalidate the old cart token
             Db::getInstance()->delete('htl_external_cart_tokens', 'id_cart = '.(int)$cart->id);
@@ -312,6 +283,8 @@ class ExternalReservationManager
             // 7. Response
             $response = $this->formatResponse($order, $booking_id);
             $response['new_cart_token'] = $new_cart_token;
+            
+            return $response;
 
         } catch (InvalidArgumentException $e) {
             error_log('ExternalReservationManager InvalidArgumentException: ' . $e->getMessage());
@@ -330,7 +303,31 @@ class ExternalReservationManager
         $roomInfo = new HotelRoomInformation($bookingDetail[0]['id_room']);
         $roomTypeInfo = (new HotelRoomType())->getRoomTypeInfoByIdProduct($roomInfo->id_product);
 
-        return array(
+        error_log('ExternalReservationManager: Order ID for formatResponse: ' . $order->id . ' Booking ID: ' . $booking_id);
+
+        $bookingDetail = (new HotelBookingDetail())->getBookingDataByOrderId($order->id);
+        error_log('ExternalReservationManager: Result of getBookingDataByOrderId: ' . json_encode($bookingDetail));
+
+        // Ensure bookingDetail is not empty before accessing its elements
+        if (empty($bookingDetail)) {
+            error_log('ExternalReservationManager: bookingDetail is empty for order ID ' . $order->id);
+            // Return a structured error or empty response if no booking details are found
+            return [
+                'success' => false,
+                'error' => 'No booking details found for this order.',
+                'error_code' => 'BOOKING_DETAILS_NOT_FOUND',
+                'timestamp' => date('c'),
+            ];
+        }
+
+        $hotelInfo = (new HotelBranchInformation())->hotelBranchInfoById($bookingDetail[0]['id_hotel']);
+        error_log('ExternalReservationManager: Hotel Info: ' . json_encode($hotelInfo));
+        $roomInfo = new HotelRoomInformation($bookingDetail[0]['id_room']);
+        error_log('ExternalReservationManager: Room Info: ' . json_encode($roomInfo));
+        $roomTypeInfo = (new HotelRoomType())->getRoomTypeInfoByIdProduct($roomInfo->id_product);
+        error_log('ExternalReservationManager: Room Type Info: ' . json_encode($roomTypeInfo));
+
+        $response = array(
             'success' => true,
             'timestamp' => date('c'),
             'reservation' => array(
@@ -342,15 +339,15 @@ class ExternalReservationManager
                     'id_hotel' => $hotelInfo['id'],
                     'hotel_name' => $hotelInfo['hotel_name'],
                     'address' => array(
-                        'street' => $hotelInfo['address1'],
-                        'city' => $hotelInfo['city'],
-                        'state' => (new State($hotelInfo['id_state']))->name,
-                        'postal_code' => $hotelInfo['postcode'],
-                        'country' => (new Country($hotelInfo['id_country']))->name[$context->language->id],
+                        'street' => isset($bookingDetail[0]['address1']) ? $bookingDetail[0]['address1'] : '',
+                        'city' => isset($bookingDetail[0]['city']) ? $bookingDetail[0]['city'] : '',
+                        'state' => isset($bookingDetail[0]['state']) ? $bookingDetail[0]['state'] : '',
+                        'postal_code' => isset($bookingDetail[0]['zipcode']) ? $bookingDetail[0]['zipcode'] : '',
+                        'country' => isset($bookingDetail[0]['country']) ? $bookingDetail[0]['country'] : '',
                     ),
                     'contact' => array(
-                        'phone' => $hotelInfo['phone'],
-                        'email' => $hotelInfo['email'],
+                        'phone' => isset($bookingDetail[0]['phone']) ? $bookingDetail[0]['phone'] : '',
+                        'email' => isset($bookingDetail[0]['email']) ? $bookingDetail[0]['email'] : '',
                     ),
                     'check_in_time' => $hotelInfo['check_in'],
                     'check_out_time' => $hotelInfo['check_out'],
@@ -358,8 +355,8 @@ class ExternalReservationManager
                 'room' => array(
                     'id_room' => $roomInfo->id,
                     'room_num' => $roomInfo->room_num,
-                    'room_type' => $roomTypeInfo['room_type_name'],
-                    'description' => $roomTypeInfo['description'],
+                    'room_type' => isset($roomTypeInfo['room_type_name']) ? $roomTypeInfo['room_type_name'] : '',
+                    'description' => isset($roomTypeInfo['description']) ? $roomTypeInfo['description'] : '',
                     'amenities' => [], // To be implemented
                 ),
                 'dates' => array(
@@ -411,6 +408,8 @@ class ExternalReservationManager
                 'created_at' => $order->date_add,
             ),
         );
+        error_log('ExternalReservationManager: Final response array: ' . json_encode($response));
+        return $response;
     }
 }
 

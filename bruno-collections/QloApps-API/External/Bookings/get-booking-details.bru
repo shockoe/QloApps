@@ -5,7 +5,11 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/api/external/booking/{{booking_id}}
+  url: {{baseUrl}}/api/external/booking/:booking_id
   body: none
   auth: inherit
+}
+
+params:path {
+  booking_id: 1
 }

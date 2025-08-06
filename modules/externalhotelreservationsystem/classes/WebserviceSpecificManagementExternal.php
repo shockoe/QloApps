@@ -61,7 +61,8 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
         $this->logMessage('Entering handleAvailability() method. Method: ' . $method);
         if ($method !== 'GET') {
             $this->logMessage('Method Not Allowed for availability: ' . $method, 'error');
-            return $this->errorResponse('Method Not Allowed', 405);
+            $this->errorResponse('Method Not Allowed', 405);
+            return;
         }
         
         try {
@@ -71,11 +72,11 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
             $this->logMessage('Availability result: ' . json_encode($result));
             
             $this->output = json_encode($result);
-            return $this->output;
         } catch (Exception $e) {
             $this->logMessage('Exception in handleAvailability: ' . $e->getMessage(), 'error');
-            return $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
+            $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
         }
+        return true;
     }
 
     public function getContent()
@@ -88,7 +89,8 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
         $this->logMessage('Entering handleAddToCart() method. Method: ' . $method);
         if ($method !== 'POST') {
             $this->logMessage('Method Not Allowed for add-to-cart: ' . $method, 'error');
-            return $this->errorResponse('Method Not Allowed', 405);
+            $this->errorResponse('Method Not Allowed', 405);
+            return;
         }
         
         try {
@@ -100,11 +102,11 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
             $this->logMessage('Exiting handleAddToCart() method. Result: ' . json_encode($result));
             
             $this->output = json_encode($result);
-            return $this->output;
         } catch (Exception $e) {
             $this->logMessage('Exception in handleAddToCart: ' . $e->getMessage(), 'error');
-            return $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
+            $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
         }
+        return true;
     }
 
     protected function handleMakeReservation($method)
@@ -112,7 +114,8 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
         $this->logMessage('Entering handleMakeReservation() method. Method: ' . $method);
         if ($method !== 'POST') {
             $this->logMessage('Method Not Allowed for make-reservation: ' . $method, 'error');
-            return $this->errorResponse('Method Not Allowed', 405);
+            $this->errorResponse('Method Not Allowed', 405);
+            return;
         }
         
         try {
@@ -121,14 +124,15 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
             $input = Tools::file_get_contents('php://input');
             $this->logMessage('Make Reservation Raw Input: ' . $input);
             $result = $manager->makeReservation(json_decode($input, true));
-            $this->logMessage('Exiting handleMakeReservation() method. Result: ' . json_encode($result));
+            $this->logMessage('Result from makeReservation: ' . json_encode($result));
             
             $this->output = json_encode($result);
-            return $this->output;
+            $this->logMessage('Final output in handleMakeReservation: ' . $this->output);
         } catch (Exception $e) {
             $this->logMessage('Exception in handleMakeReservation: ' . $e->getMessage(), 'error');
-            return $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
+            $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
         }
+        return true;
     }
 
     protected function handleBookingDetails($method, $params)
@@ -136,7 +140,8 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
         $this->logMessage('Entering handleBookingDetails() method. Method: ' . $method);
         if ($method !== 'GET') {
             $this->logMessage('Method Not Allowed for booking-details: ' . $method, 'error');
-            return $this->errorResponse('Method Not Allowed', 405);
+            $this->errorResponse('Method Not Allowed', 405);
+            return;
         }
         
         try {
@@ -148,11 +153,11 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
             $this->logMessage('Exiting handleBookingDetails() method. Result: ' . json_encode($result));
             
             $this->output = json_encode($result);
-            return $this->output;
         } catch (Exception $e) {
             $this->logMessage('Exception in handleBookingDetails: ' . $e->getMessage(), 'error');
-            return $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
+            $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
         }
+        return true;
     }
 
     protected function handleCustomerSignup($method)
@@ -160,7 +165,8 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
         $this->logMessage('Entering handleCustomerSignup() method. Method: ' . $method);
         if ($method !== 'POST') {
             $this->logMessage('Method Not Allowed for customer-signup: ' . $method, 'error');
-            return $this->errorResponse('Method Not Allowed', 405);
+            $this->errorResponse('Method Not Allowed', 405);
+            return;
         }
         
         try {
@@ -176,11 +182,11 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
             $this->logMessage('Exiting handleCustomerSignup() method. Result: ' . json_encode($result));
             
             $this->output = json_encode($result);
-            return $this->output;
         } catch (Exception $e) {
             $this->logMessage('Exception in handleCustomerSignup: ' . $e->getMessage(), 'error');
-            return $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
+            $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
         }
+        return true;
     }
 
     protected function handleCustomerLogin($method)
@@ -188,7 +194,8 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
         $this->logMessage('Entering handleCustomerLogin() method. Method: ' . $method);
         if ($method !== 'POST') {
             $this->logMessage('Method Not Allowed for customer-login: ' . $method, 'error');
-            return $this->errorResponse('Method Not Allowed', 405);
+            $this->errorResponse('Method Not Allowed', 405);
+            return;
         }
         
         try {
@@ -204,11 +211,11 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
             $this->logMessage('Exiting handleCustomerLogin() method. Result: ' . json_encode($result));
             
             $this->output = json_encode($result);
-            return $this->output;
         } catch (Exception $e) {
             $this->logMessage('Exception in handleCustomerLogin: ' . $e->getMessage(), 'error');
-            return $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
+            $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
         }
+        return true;
     }
 
     protected function handleCartDetails($method)
@@ -216,7 +223,8 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
         $this->logMessage('Entering handleCartDetails() method. Method: ' . $method);
         if ($method !== 'POST') {
             $this->logMessage('Method Not Allowed for cart-details: ' . $method, 'error');
-            return $this->errorResponse('Method Not Allowed', 405);
+            $this->errorResponse('Method Not Allowed', 405);
+            return;
         }
         
         try {
@@ -228,10 +236,9 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
             $this->logMessage('Exiting handleCartDetails() method. Result: ' . json_encode($result));
             
             $this->output = json_encode($result);
-            return $this->output;
         } catch (Exception $e) {
             $this->logMessage('Exception in handleCartDetails: ' . $e->getMessage(), 'error');
-            return $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
+            $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
         }
     }
 

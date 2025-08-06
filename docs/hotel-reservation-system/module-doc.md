@@ -69,7 +69,7 @@ The `externalhotelreservationsystem` module provides a robust API interface for 
 *   **Guest Details Management:**
     *   Validates and processes `guest_details` (title, first name, last name, phone, email, etc.).
     *   Loads or creates a `CustomerGuestDetail` object and links it to the cart.
-*   **Order Creation:** Uses the `bankwire` module (as a proxy for "Pay at Location") to validate the order and create a new PrestaShop order with an "awaiting payment" status.
+*   **Order Creation:** Uses the `bankwire` module (as a proxy for "Pay at Location") to validate the order and create a new PrestaShop order. If no active carriers are found, a default "Hotel Reservation" carrier is automatically created and assigned to the cart. This action triggers the original `hotelreservationsystem` module's hooks to create the final booking records, ensuring a consistent and stable workflow.
 *   **Hotel Booking Detail Creation:** After the PrestaShop order is created, the system generates the specific hotel booking records. It correctly maps each booking to its corresponding order line item to ensure data integrity, even when multiple room types are booked in a single order.
 *   **External Reference:** Generates a unique `booking_id` and stores it in `htl_external_booking_refs` for external tracking.
 *   **Response:** Returns a comprehensive JSON response with all reservation details, including hotel, room, dates, occupancy, customer, pricing, and payment status.
@@ -138,7 +138,7 @@ The module introduces custom database tables to support its functionality:
     *   If successful, the room is added to a PrestaShop cart, and the lock is immediately released.
     *   A `cart_token` is returned to the external system.
 5.  **Make Reservation:** The external system proceeds to finalize the booking by calling the `make-reservation` endpoint (handled by `ExternalReservationManager`), providing the `cart_token` and payment details.
-    *   `ExternalReservationManager` retrieves the cart, creates a PrestaShop order, and generates the hotel-specific booking details.
+    *   `ExternalReservationManager` retrieves the cart and creates a PrestaShop order. This triggers the standard `hotelreservationsystem` hooks, which then create the final hotel booking records.
     *   An external `booking_id` is generated and stored for future reference.
 6.  **Retrieve Booking Details:** The external system can later query the `booking` endpoint (handled by `ExternalBookingManager`) using the `booking_id` to retrieve the full details of the confirmed reservation.
 

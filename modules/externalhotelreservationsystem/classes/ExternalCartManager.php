@@ -70,28 +70,41 @@ class ExternalCartManager
             $context->cookie->write();
 
             // Load or create cart for the validated customer
-            if (!Validate::isLoadedObject($context->cart) || $context->cart->id_customer != $customer->id) {
-                $id_cart = (int)Db::getInstance()->getValue(
-                    'SELECT id_cart FROM '._DB_PREFIX_.'cart WHERE id_customer = '.(int)$customer->id.' ORDER BY date_add DESC'
-                );
-                if ($id_cart) {
-                    $context->cart = new Cart($id_cart);
-                } else {
-                    $context->cart = new Cart();
-                    $context->cart->id_shop_group = (int)$context->shop->id_shop_group;
-                    $context->cart->id_shop = (int)$context->shop->id;
-                    $context->cart->id_customer = (int)$customer->id;
-                    $context->cart->id_currency = (int)$context->currency->id;
-                    $context->cart->id_lang = (int)$context->language->id;
-                    $context->cart->secure_key = $customer->secure_key;
-                    $context->cart->add();
+            $id_cart = (int)Db::getInstance()->getValue(
+                'SELECT id_cart FROM '._DB_PREFIX_.'cart WHERE id_customer = '.(int)$customer->id.' ORDER BY date_add DESC'
+            );
+            error_log('ExternalCartManager: Initial id_cart from DB for customer ' . $customer->id . ': ' . $id_cart);
+
+            $cart_is_valid = false;
+            if ($id_cart) {
+                $temp_cart = new Cart($id_cart);
+                error_log('ExternalCartManager: Loaded temp_cart ID: ' . $temp_cart->id . ' id_order: ' . (int)Order::getOrderByCartId($temp_cart->id));
+                // Check if the cart is loaded and not already associated with an order
+                if (Validate::isLoadedObject($temp_cart) && !Order::getOrderByCartId($temp_cart->id)) {
+                    $context->cart = $temp_cart;
+                    $cart_is_valid = true;
                 }
+            }
+
+            if (!$cart_is_valid || $context->cart->id_customer != $customer->id) {
+                $context->cart = new Cart();
+                $context->cart->id_shop_group = (int)$context->shop->id_shop_group;
+                $context->cart->id_shop = (int)$context->shop->id;
+                $context->cart->id_customer = (int)$customer->id;
+                $context->cart->id_currency = (int)$context->currency->id;
+                $context->cart->id_lang = (int)$context->language->id;
+                $context->cart->secure_key = $customer->secure_key;
+                $context->cart->add();
+                error_log('ExternalCartManager: Created new cart with ID: ' . $context->cart->id);
             }
             $context->cart->update();
 
+            error_log('ExternalCartManager: Cart ID before CART_ALREADY_FULL check: ' . $context->cart->id);
             // Enforce single booking per cart rule
             $cartBookingData = new HotelCartBookingData();
-            if ($cartBookingData->getCartCurrentDataByCartId($context->cart->id)) {
+            $cart_has_bookings = $cartBookingData->getCartCurrentDataByCartId($context->cart->id);
+            error_log('ExternalCartManager: Result of getCartCurrentDataByCartId: ' . ($cart_has_bookings ? 'true' : 'false'));
+            if ($cart_has_bookings) {
                 return [
                     'success' => false,
                     'error' => 'Your cart already contains a booking. Only one room can be booked per order.',
