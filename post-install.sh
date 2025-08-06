@@ -4,7 +4,14 @@ set -e
 # This script is designed to be run from your host machine.
 # It executes the necessary post-installation commands inside the running qloapps container.
 
-CONTAINER_NAME="qloapps-booking-system"
+# Check if dev suffix is provided as an argument
+if [ "$1" = "dev" ]; then
+    CONTAINER_SUFFIX="-dev"
+else
+    CONTAINER_SUFFIX=""
+fi
+
+CONTAINER_NAME="qloapps-booking-system${CONTAINER_SUFFIX}"
 APP_DIR="/home/qloapps/www/hotelcommerce"
 
 # Check if the container is running

@@ -48,9 +48,12 @@ services:
       # SSH Access  
       - '${QLOAPPS_SSH_PORT:-2222}:22'
     volumes:
-      # Mount source code for hot reloading (IMPORTANT: this enables live editing)
-      - .:/home/qloapps/www/hotelcommerce
-      # Persist uploaded files, cache, and logs separately to avoid conflicts
+      # Mount only the directories you need to edit during development
+      - ./modules:/home/qloapps/www/hotelcommerce/modules
+      - ./themes:/home/qloapps/www/hotelcommerce/themes  
+      - ./override:/home/qloapps/www/hotelcommerce/override
+      
+      # Keep these as named volumes (managed by Docker)
       - qloapps_uploads_dev:/home/qloapps/www/hotelcommerce/upload
       - qloapps_cache_dev:/home/qloapps/www/hotelcommerce/cache
       - qloapps_logs_dev:/home/qloapps/www/hotelcommerce/log
