@@ -146,6 +146,37 @@ class ExternalBookingManager
             $roomTypeDescription = $product->description_short ? $product->description_short : $product->description;
         }
 
+        // Get hotel images
+        $hotelImages = array();
+        require_once(dirname(__FILE__).'/../../hotelreservationsystem/classes/HotelImage.php');
+        $hotelImageObj = new HotelImage();
+        $hotelImagesList = $hotelImageObj->getImagesByHotelId($bookingDetail[0]['id_hotel']);
+        if ($hotelImagesList && is_array($hotelImagesList)) {
+            foreach ($hotelImagesList as $hotelImg) {
+                $imageObj = new HotelImage($hotelImg['id']);
+                $imageUrl = $imageObj->getImageLink($hotelImg['id']);
+                $hotelImages[] = array(
+                    'id' => (int)$hotelImg['id'],
+                    'is_cover' => (bool)$hotelImg['cover'],
+                    'url' => Context::getContext()->link->getMediaLink($imageUrl),
+                );
+            }
+        }
+
+        // Get room images (product images)
+        $roomImages = array();
+        $productImages = Image::getImages($languageId, $roomInfo->id_product);
+        if ($productImages) {
+            foreach ($productImages as $productImg) {
+                $roomImages[] = array(
+                    'id' => (int)$productImg['id_image'],
+                    'is_cover' => (bool)$productImg['cover'],
+                    'legend' => $productImg['legend'],
+                    'url' => Context::getContext()->link->getImageLink($product->link_rewrite, $productImg['id_image'], ImageType::getFormatedName('medium')),
+                );
+            }
+        }
+
         return array(
             'success' => true,
             'timestamp' => date('c'),
@@ -173,7 +204,8 @@ class ExternalBookingManager
                         'check_in_time' => $hotelInfo['check_in'],
                         'check_out_time' => $hotelInfo['check_out'],
                         'cancellation_policy' => isset($hotelInfo['policies']) ? $hotelInfo['policies'] : '',
-                    )
+                    ),
+                    'images' => $hotelImages
                 ),
                 'room' => array(
                     'id_room' => $roomInfo->id,
@@ -183,6 +215,7 @@ class ExternalBookingManager
                     'amenities' => [], // To be implemented with room type amenities
                     'bed_type' => isset($roomTypeInfo->bed_type) ? $roomTypeInfo->bed_type : '',
                     'max_occupancy' => isset($roomTypeInfo['max_guests']) ? (int)$roomTypeInfo['max_guests'] : 0,
+                    'images' => $roomImages
                 ),
                 'dates' => array(
                     'check_in' => $bookingDetail[0]['date_from'],
