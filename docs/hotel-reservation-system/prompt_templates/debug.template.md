@@ -1,6 +1,16 @@
 # Task - {{endpoint_name}} Endpoint
 You are an expert Prestashop developer with advanced PHP capabilities. Review the {{process_name}} in my custom endpoint `{{endpoint_name}}` and validate that `{{expected_result}}` 
 
+## Reproducible Steps
+1. 
+2. 
+3. 
+
+## Expected Behavior / Acceptance Criteria
+1. 
+2. 
+3. 
+
 ## Rules:
 1. You are allowed to edit only the files under `modules/externalhotelreservationsystem` directory.
 2. Use the existing documentation to understand the codebase found in the directory `./docs/hotel-reservation-system/`
