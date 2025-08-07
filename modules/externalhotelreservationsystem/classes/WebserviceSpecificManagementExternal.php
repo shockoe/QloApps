@@ -167,7 +167,7 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
     protected function handleBookingByConfirmation($method, $params)
     {
         $this->logMessage('Entering handleBookingByConfirmation() method. Method: ' . $method);
-        if ($method !== 'GET') {
+        if ($method !== 'POST') {
             $this->logMessage('Method Not Allowed for booking-by-confirmation: ' . $method, 'error');
             $this->errorResponse('Method Not Allowed', 405);
             return;
@@ -176,17 +176,35 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
         try {
             require_once(dirname(__FILE__).'/ExternalBookingManager.php');
             $manager = new ExternalBookingManager();
-            $confirmation_number = isset($params['confirmation_number']) ? $params['confirmation_number'] : '';
-            $this->logMessage('Confirmation Number: ' . $confirmation_number);
+            $input = Tools::file_get_contents('php://input');
+            $this->logMessage('Booking By Confirmation Raw Input: ' . $input);
+            $data = json_decode($input, true);
             
-            if (empty($confirmation_number)) {
-                $this->logMessage('Missing confirmation_number parameter', 'error');
-                $this->errorResponse('confirmation_number parameter is required', 400);
+            $confirmation_number = isset($data['confirmation_number']) ? $data['confirmation_number'] : '';
+            $customer_last_name = isset($data['customer_last_name']) ? $data['customer_last_name'] : '';
+            $this->logMessage('Confirmation Number: ' . $confirmation_number . ', Customer Last Name: ' . $customer_last_name);
+            
+            if (empty($confirmation_number) || empty($customer_last_name)) {
+                $this->logMessage('Missing required parameters confirmation_number or customer_last_name', 'error');
+                $this->errorResponse('confirmation_number and customer_last_name are required in request body', 400);
                 return;
             }
             
-            $result = $manager->getBookingDetailsByConfirmation($confirmation_number);
+            $result = $manager->getBookingDetailsByConfirmation($confirmation_number, $customer_last_name);
             $this->logMessage('Exiting handleBookingByConfirmation() method. Result: ' . json_encode($result));
+            
+            // Handle 404 case specifically
+            if (isset($result['error_code']) && $result['error_code'] === 'BOOKING_NOT_FOUND') {
+                $errorResponse = array(
+                    'success' => false,
+                    'error' => 'Booking not found',
+                    'error_code' => 'BOOKING_NOT_FOUND',
+                    'timestamp' => date('c')
+                );
+                $this->output = json_encode($errorResponse);
+                http_response_code(404);
+                return;
+            }
             
             $this->output = json_encode($result);
         } catch (Exception $e) {

@@ -4,17 +4,19 @@ meta {
   seq: 2
 }
 
-get {
-  url: {{baseUrl}}/api/external/booking-by-confirmation?confirmation_number=QQSWLVLPH&output_format=JSON
-  body: none
+post {
+  url: {{baseUrl}}/api/external/booking-by-confirmation
+  body: json
   auth: inherit
-}
-
-params:query {
-  confirmation_number: QQSWLVLPH
-  output_format: JSON
 }
 
 headers {
   Content-Type: application/json
+}
+
+body:json {
+  {
+    "confirmation_number": "QQSWLVLPH",
+    "customer_last_name": "User"
+  }
 }

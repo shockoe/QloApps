@@ -41,12 +41,16 @@ class ExternalBookingManager
         }
     }
 
-    public function getBookingDetailsByConfirmation($confirmation_number)
+    public function getBookingDetailsByConfirmation($confirmation_number, $customer_last_name)
     {
         try {
             // Validation
             if (empty($confirmation_number)) {
-                throw new InvalidArgumentException('confirmation_number is required');
+                return array('success' => false, 'error' => 'confirmation_number is required', 'error_code' => 'INVALID_PARAMETER');
+            }
+            
+            if (empty($customer_last_name)) {
+                return array('success' => false, 'error' => 'customer_last_name is required', 'error_code' => 'INVALID_PARAMETER');
             }
 
             // Include PrestaShop config and required classes
@@ -60,12 +64,23 @@ class ExternalBookingManager
             // Get order from confirmation_number (order reference)
             $order = Db::getInstance()->getRow('SELECT * FROM `'._DB_PREFIX_.'orders` WHERE `reference` = "'.pSQL($confirmation_number).'"');
             if (!$order) {
-                throw new Exception('Booking not found with confirmation number: ' . $confirmation_number);
+                return array('success' => false, 'error' => 'Booking not found', 'error_code' => 'BOOKING_NOT_FOUND');
             }
 
             $order_obj = new Order((int)$order['id_order']);
             if (!Validate::isLoadedObject($order_obj)) {
-                throw new Exception('Order not found');
+                return array('success' => false, 'error' => 'Booking not found', 'error_code' => 'BOOKING_NOT_FOUND');
+            }
+
+            // Load customer and validate last name
+            $customer = new Customer($order_obj->id_customer);
+            if (!Validate::isLoadedObject($customer)) {
+                return array('success' => false, 'error' => 'Booking not found', 'error_code' => 'BOOKING_NOT_FOUND');
+            }
+
+            // Case-insensitive comparison of last names
+            if (strtolower($customer->lastname) !== strtolower($customer_last_name)) {
+                return array('success' => false, 'error' => 'Booking not found', 'error_code' => 'BOOKING_NOT_FOUND');
             }
 
             // Get the booking_id from the external booking refs table
@@ -76,9 +91,6 @@ class ExternalBookingManager
 
             return $response;
 
-        } catch (InvalidArgumentException $e) {
-            error_log('ExternalBookingManager InvalidArgumentException: ' . $e->getMessage());
-            return array('success' => false, 'error' => $e->getMessage(), 'error_code' => 'INVALID_PARAMETER');
         } catch (Exception $e) {
             error_log('ExternalBookingManager Exception: ' . $e->getMessage());
             return array('success' => false, 'error' => 'An unexpected error occurred: '.$e->getMessage(), 'error_code' => 'INTERNAL_ERROR');
