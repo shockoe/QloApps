@@ -78,6 +78,13 @@ class ExternalCancellationManager
             $objHtlBookingDetail->id_status = HotelBookingDetail::STATUS_ALLOTED; // Or a specific cancelled status if available
             $objHtlBookingDetail->update();
 
+            // 6. Delete the cart
+            $cart = new Cart($order->id_cart);
+            if (Validate::isLoadedObject($cart)) {
+                Db::getInstance()->execute('DELETE FROM `'._DB_PREFIX_.'htl_cart_booking_data` WHERE `id_cart` = '.(int)$cart->id);
+                $cart->delete();
+            }
+
             // Generate a cancellation ID (simple example)
             $cancellation_id = 'CANCEL-' . $order->id . '-' . time();
 
