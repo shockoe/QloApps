@@ -347,14 +347,30 @@ Content-Type: application/json
                 "email": "reservations@grandplaza.com"
             },
             "check_in_time": "15:00",
-            "check_out_time": "11:00"
+            "check_out_time": "11:00",
+            "images": [{
+                "id": 1,
+                "is_cover": true,
+                "url": "http://localhost:8080/modules/hotelreservationsystem/views/img/hotel_img/1/1.jpg"
+            }]
         },
         "room": {
             "id_room": 101,
             "room_num": "101",
             "room_type": "Deluxe Room",
             "description": "Spacious room with sea view",
-            "amenities": ["Wi-Fi", "Air Conditioning", "Mini Bar", "Safe"]
+            "amenities": ["Wi-Fi", "Air Conditioning", "Mini Bar", "Safe"],
+            "images": [{
+                "id": 1,
+                "is_cover": true,
+                "legend": "Main room view",
+                "url": "http://localhost:8080/1-medium_default/deluxe-room.jpg"
+            }, {
+                "id": 2,
+                "is_cover": false,
+                "legend": "Bathroom view",
+                "url": "http://localhost:8080/2-medium_default/deluxe-room.jpg"
+            }]
         },
         "dates": {
             "check_in": "2024-03-15",
@@ -440,7 +456,290 @@ Content-Type: application/json
 
 ---
 
-## 4. Get Booking Details Endpoint
+## 4. Booking by Confirmation Endpoint
+
+### Endpoint Details
+```
+POST /api/external/booking-by-confirmation
+```
+
+### Purpose
+Retrieves complete booking information using confirmation number and customer last name for secure booking lookup.
+
+### Request Parameters
+
+#### Required Parameters (JSON Body)
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `confirmation_number` | string | Order confirmation number | `QQSWLVLPH` |
+| `customer_last_name` | string | Customer's last name for verification | `Smith` |
+
+### Request Example
+```http
+POST /api/external/booking-by-confirmation
+Content-Type: application/json
+Authorization: Basic <base64_encoded_ws_key>
+
+{
+    "confirmation_number": "QQSWLVLPH",
+    "customer_last_name": "Smith"
+}
+```
+
+### Response Structure
+
+#### Success Response (200 OK)
+```json
+{
+    "success": true,
+    "timestamp": "2024-03-15T10:30:00Z",
+    "booking": {
+        "booking_id": "HTL-2024-001234",
+        "order_id": 5678,
+        "status": "confirmed",
+        "booking_status": "alloted",
+        "confirmation_number": "QQSWLVLPH",
+        "hotel": {
+            "id_hotel": 1,
+            "hotel_name": "Grand Plaza Hotel",
+            "address": {
+                "street": "123 Beach Boulevard",
+                "city": "Miami",
+                "state": "FL",
+                "postal_code": "33139",
+                "country": "USA"
+            },
+            "contact": {
+                "phone": "+1-305-555-0123",
+                "email": "reservations@grandplaza.com"
+            },
+            "policies": {
+                "check_in_time": "15:00",
+                "check_out_time": "11:00",
+                "cancellation_policy": "Free cancellation until 24 hours before check-in"
+            },
+            "images": [{
+                "id": 1,
+                "is_cover": true,
+                "url": "http://localhost:8080/modules/hotelreservationsystem/views/img/hotel_img/1/1.jpg"
+            }]
+        },
+        "room": {
+            "id_room": 101,
+            "room_num": "101",
+            "room_type": "Deluxe Room",
+            "description": "Spacious room with sea view and balcony",
+            "amenities": ["Wi-Fi", "Air Conditioning", "Mini Bar", "Safe", "Balcony"],
+            "bed_type": "King Size",
+            "max_occupancy": 4,
+            "images": [{
+                "id": 1,
+                "is_cover": true,
+                "legend": "Main room view",
+                "url": "http://localhost:8080/1-medium_default/deluxe-room.jpg"
+            }, {
+                "id": 2,
+                "is_cover": false,
+                "legend": "Bathroom view",
+                "url": "http://localhost:8080/2-medium_default/deluxe-room.jpg"
+            }]
+        },
+        "dates": {
+            "check_in": "2024-03-15",
+            "check_out": "2024-03-17",
+            "nights": 2,
+            "actual_check_in": null,
+            "actual_check_out": null
+        },
+        "occupancy": {
+            "adults": 2,
+            "children": 1,
+            "child_ages": [8],
+            "total_guests": 3
+        },
+        "customer": {
+            "customer_id": 456,
+            "first_name": "John",
+            "last_name": "Smith",
+            "email": "john.smith@example.com",
+            "phone": "+1-555-123-4567"
+        },
+        "pricing": {
+            "room_charges": {
+                "nightly_rate": 150.00,
+                "nights": 2,
+                "subtotal": 300.00
+            },
+            "extra_demands": [],
+            "taxes": {
+                "room_tax": 36.00,
+                "service_tax": 6.00,
+                "total_tax": 42.00
+            },
+            "totals": {
+                "subtotal": 350.00,
+                "tax_amount": 42.00,
+                "total_amount": 392.00,
+                "currency": "USD"
+            }
+        },
+        "payment": {
+            "method": "Bank Wire",
+            "status": "pending",
+            "transaction_id": "QQSWLVLPH",
+            "amount_paid": 392.00,
+            "payment_date": "2024-03-15T10:30:00Z"
+        },
+        "special_requests": "",
+        "booking_history": [],
+        "cancellation_info": {
+            "is_cancellable": true,
+            "cancellation_deadline": "2024-03-14T23:59:59Z"
+        },
+        "created_at": "2024-03-15T10:30:00Z",
+        "updated_at": "2024-03-15T10:30:00Z"
+    }
+}
+```
+
+#### Error Response (404 Not Found)
+```json
+{
+    "success": false,
+    "error": "Booking not found",
+    "error_code": "BOOKING_NOT_FOUND",
+    "timestamp": "2024-03-15T10:30:00Z"
+}
+```
+
+### Implementation References
+- **Handler Class:** `WebserviceSpecificManagementExternal::handleBookingByConfirmation()`
+- **Business Logic:** `ExternalBookingManager::getBookingDetailsByConfirmation()`
+- **Hotel Images:** `HotelImage::getImagesByHotelId()`
+- **Room Images:** `Image::getImages()` from PrestaShop core
+
+---
+
+## 5. My Stay Endpoint
+
+### Endpoint Details
+```
+POST /api/external/my-stay
+```
+
+### Purpose
+Retrieves all active and upcoming reservations for a customer using their customer ID and secure key.
+
+### Request Parameters
+
+#### Required Parameters (JSON Body)
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `customer_id` | integer | Customer identifier | `2` |
+| `secure_key` | string | Customer's secure authentication key | `0c8c673527f2c73b4a2a593245720bf6` |
+
+### Request Example
+```http
+POST /api/external/my-stay
+Content-Type: application/json
+Authorization: Basic <base64_encoded_ws_key>
+
+{
+    "customer_id": 2,
+    "secure_key": "0c8c673527f2c73b4a2a593245720bf6"
+}
+```
+
+### Response Structure
+
+#### Success Response (200 OK)
+```json
+{
+    "success": true,
+    "timestamp": "2024-03-15T10:30:00Z",
+    "customer": {
+        "customer_id": 2,
+        "first_name": "John",
+        "last_name": "Smith",
+        "email": "john.smith@example.com"
+    },
+    "reservations": [{
+        "booking_id": "HTL-2024-001234",
+        "order_id": 5678,
+        "status": "active",
+        "confirmation_number": "QQSWLVLPH",
+        "hotel": {
+            "id_hotel": 1,
+            "hotel_name": "Grand Plaza Hotel",
+            "email": "reservations@grandplaza.com",
+            "phone": "+1-305-555-0123",
+            "images": [{
+                "id": 1,
+                "is_cover": true,
+                "url": "http://localhost:8080/modules/hotelreservationsystem/views/img/hotel_img/1/1.jpg"
+            }]
+        },
+        "room": {
+            "id_room": 101,
+            "room_num": "101",
+            "room_type": "Deluxe Room",
+            "max_occupancy": 4,
+            "images": [{
+                "id": 1,
+                "is_cover": true,
+                "legend": "Main room view",
+                "url": "http://localhost:8080/1-medium_default/deluxe-room.jpg"
+            }, {
+                "id": 2,
+                "is_cover": false,
+                "legend": "Bathroom view",
+                "url": "http://localhost:8080/2-medium_default/deluxe-room.jpg"
+            }]
+        },
+        "dates": {
+            "check_in": "2024-03-15",
+            "check_out": "2024-03-17",
+            "nights": 2
+        },
+        "occupancy": {
+            "adults": 2,
+            "children": 1,
+            "total_guests": 3
+        },
+        "pricing": {
+            "total_amount": 392.00,
+            "currency": "USD"
+        },
+        "payment": {
+            "method": "Bank Wire",
+            "status": "pending"
+        },
+        "created_at": "2024-03-15T10:30:00Z",
+        "updated_at": "2024-03-15T10:30:00Z"
+    }],
+    "total_reservations": 1
+}
+```
+
+#### Error Response (401 Unauthorized)
+```json
+{
+    "success": false,
+    "error": "Invalid customer credentials",
+    "error_code": "AUTHENTICATION_FAILED",
+    "timestamp": "2024-03-15T10:30:00Z"
+}
+```
+
+### Implementation References
+- **Handler Class:** `WebserviceSpecificManagementExternal::handleMyStay()`
+- **Business Logic:** `ExternalMyStayManager::getCustomerReservations()`
+- **Customer Validation:** `ExternalMyStayManager::validateCustomer()`
+- **Image Integration:** Same as booking-by-confirmation endpoint
+
+---
+
+## 6. Get Booking Details Endpoint
 
 ### Endpoint Details
 ```
@@ -594,11 +893,174 @@ GET /api/external/booking/HTL-2024-001234?ws_key=MVFDI376Y2MCWR4YWHSH145GR9VWMWY
 
 ---
 
+## Image Support Implementation
+
+### Overview
+All booking-related endpoints now include comprehensive image support for both hotels and rooms. Images are automatically fetched and included in API responses to provide rich visual content for frontend applications.
+
+### Image Data Structure
+
+#### Hotel Images
+Hotel images are stored in the `htl_image` table and managed by the `HotelImage` class from the hotel reservation system module.
+
+```json
+{
+    "images": [{
+        "id": 1,
+        "is_cover": true,
+        "url": "http://localhost:8080/modules/hotelreservationsystem/views/img/hotel_img/1/1.jpg"
+    }, {
+        "id": 2,
+        "is_cover": false,
+        "url": "http://localhost:8080/modules/hotelreservationsystem/views/img/hotel_img/1/2.jpg"
+    }]
+}
+```
+
+**Hotel Image Fields:**
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | integer | Unique hotel image identifier |
+| `is_cover` | boolean | Whether this is the primary/cover image |
+| `url` | string | Full URL to the image file |
+
+#### Room Images
+Room images are stored in PrestaShop's standard `image` table and linked to room type products. They include additional metadata like legends for accessibility.
+
+```json
+{
+    "images": [{
+        "id": 1,
+        "is_cover": true,
+        "legend": "Main room view",
+        "url": "http://localhost:8080/1-medium_default/deluxe-room.jpg"
+    }, {
+        "id": 2,
+        "is_cover": false,
+        "legend": "Bathroom view", 
+        "url": "http://localhost:8080/2-medium_default/deluxe-room.jpg"
+    }]
+}
+```
+
+**Room Image Fields:**
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | integer | PrestaShop image identifier |
+| `is_cover` | boolean | Whether this is the primary product image |
+| `legend` | string | Image description/alt text |
+| `url` | string | Full URL to the image file (medium size format) |
+
+### Image Integration Points
+
+#### Endpoints with Image Support
+1. **booking-by-confirmation** - Full hotel and room images
+2. **my-stay** - Hotel and room images for all reservations
+3. **make-reservation** - Images included in reservation response
+
+#### Image Sources and Processing
+
+**Hotel Images:**
+- **Source:** `htl_image` database table
+- **Retrieval:** `HotelImage::getImagesByHotelId($hotel_id)`
+- **URL Generation:** `HotelImage::getImageLink($image_id)` with `Context::getContext()->link->getMediaLink()`
+- **File Storage:** `/modules/hotelreservationsystem/views/img/hotel_img/{hotel_id}/{image_id}.jpg`
+
+**Room Images:**
+- **Source:** PrestaShop `image` table (linked to room type products)
+- **Retrieval:** `Image::getImages($language_id, $product_id)`
+- **URL Generation:** `Context::getContext()->link->getImageLink()` with medium image format
+- **File Storage:** PrestaShop standard product image directory with size variants
+
+### Implementation Details
+
+#### Code Implementation Pattern
+```php
+// Get hotel images
+$hotelImages = array();
+require_once(dirname(__FILE__).'/../../hotelreservationsystem/classes/HotelImage.php');
+$hotelImageObj = new HotelImage();
+$hotelImagesList = $hotelImageObj->getImagesByHotelId($hotel_id);
+if ($hotelImagesList && is_array($hotelImagesList)) {
+    foreach ($hotelImagesList as $hotelImg) {
+        $imageObj = new HotelImage($hotelImg['id']);
+        $imageUrl = $imageObj->getImageLink($hotelImg['id']);
+        $hotelImages[] = array(
+            'id' => (int)$hotelImg['id'],
+            'is_cover' => (bool)$hotelImg['cover'],
+            'url' => Context::getContext()->link->getMediaLink($imageUrl),
+        );
+    }
+}
+
+// Get room images (product images)
+$roomImages = array();
+$productImages = Image::getImages($languageId, $product_id);
+if ($productImages) {
+    foreach ($productImages as $productImg) {
+        $roomImages[] = array(
+            'id' => (int)$productImg['id_image'],
+            'is_cover' => (bool)$productImg['cover'],
+            'legend' => $productImg['legend'],
+            'url' => Context::getContext()->link->getImageLink($product->link_rewrite, $productImg['id_image'], ImageType::getFormatedName('medium')),
+        );
+    }
+}
+```
+
+#### Classes Modified for Image Support
+1. **ExternalBookingManager.php** - Added hotel and room image fetching to `getBookingDetailsByConfirmation()` method
+2. **ExternalMyStayManager.php** - Added image support to `getBookingDetailsForOrder()` method  
+3. **ExternalReservationManager.php** - Added image support to `formatResponse()` method
+
+### Frontend Integration Guidelines
+
+#### Image Display Recommendations
+- **Hotel Images:** Use for property showcase, header banners, gallery displays
+- **Room Images:** Use for room type selection, booking confirmation, detailed room views
+- **Cover Images:** Use `is_cover: true` images as primary display images
+- **Responsive Images:** URLs point to medium-format images (suitable for web display)
+
+#### Error Handling
+- **Empty Image Arrays:** If no images are available, arrays will be empty `[]`
+- **Broken URLs:** Frontend should implement fallback images for broken or missing image files
+- **Loading States:** Implement proper loading states for image-heavy API responses
+
+#### Performance Considerations
+- **Image Caching:** Images are served through PrestaShop's media system with proper caching headers
+- **Lazy Loading:** Consider implementing lazy loading for image galleries
+- **Image Optimization:** Medium format provides good balance between quality and load time
+
+### Database Schema
+
+#### Hotel Images Table (htl_image)
+```sql
+CREATE TABLE htl_image (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    id_hotel INT NOT NULL,
+    cover TINYINT(1) DEFAULT 0,
+    -- Additional fields managed by HotelImage class
+    INDEX idx_hotel_id (id_hotel),
+    INDEX idx_cover (id_hotel, cover)
+);
+```
+
+#### PrestaShop Images Table (image)
+```sql
+-- Standard PrestaShop image table
+-- Links to products (room types) via id_product
+-- Includes multilingual legend support via image_lang table
+```
+
+This image integration provides comprehensive visual support for all booking-related operations while maintaining compatibility with existing PrestaShop image management systems.
+
+---
+
 ## Implementation Guidelines
 
 ### 1. Module Structure
 
-Create new module: `externalhotelreservationsystem`
+**Current Implementation:** `externalhotelreservationsystem`
 
 ```
 modules/externalhotelreservationsystem/
@@ -608,15 +1070,28 @@ modules/externalhotelreservationsystem/
 │   ├── ExternalAvailabilityManager.php          # Availability endpoint logic
 │   ├── ExternalCartManager.php                  # Cart management logic
 │   ├── ExternalReservationManager.php           # Reservation creation logic
-│   ├── ExternalBookingManager.php               # Booking retrieval logic  
-│   ├── ExternalPaymentProcessor.php             # Mock payment processor
+│   ├── ExternalBookingManager.php               # Booking retrieval logic (with images)
+│   ├── ExternalMyStayManager.php                # Customer reservations (with images)
+│   ├── ExternalCustomerManager.php              # Customer signup management
+│   ├── ExternalCustomerLoginManager.php         # Customer login management
+│   ├── ExternalCartDetailsManager.php           # Cart details retrieval
+│   ├── ExternalEmptyCartManager.php             # Cart cleanup operations
+│   ├── ExternalApiValidator.php                 # Input validation utilities
 │   └── index.php
-├── controllers/
-│   └── index.php
+├── logs/
+│   └── debug.log                                # API request/response logging
 ├── config.xml
 ├── install.php
 └── index.php
 ```
+
+**Key Implementation Features:**
+- ✅ Complete endpoint coverage (availability, cart, reservation, booking, my-stay)
+- ✅ Customer management (signup, login, authentication)
+- ✅ Image support for hotels and rooms
+- ✅ POST method implementation for secure operations
+- ✅ Comprehensive error handling and logging
+- ✅ Database schema extensions for external references
 
 ### 2. WebService Integration
 
@@ -890,4 +1365,79 @@ class ExternalApiLogger
 }
 ```
 
-This comprehensive API development guide provides the foundation for implementing a robust external hotel reservation system while maintaining full compatibility with the existing PrestaShop infrastructure.
+---
+
+## Recent Updates & Enhancements
+
+### Version 2.1 - Image Support Integration (August 2025)
+
+#### New Features Added:
+✅ **Comprehensive Image Support**
+- Hotel property images automatically included in all booking responses
+- Room type images with legends and cover image identification
+- Full URL generation with PrestaShop media link integration
+
+#### Endpoints Enhanced:
+1. **booking-by-confirmation** - Now includes `hotel.images[]` and `room.images[]`
+2. **my-stay** - All customer reservations include hotel and room images  
+3. **make-reservation** - Reservation confirmation includes complete image data
+
+#### Technical Implementation:
+- **Hotel Images:** Integration with `HotelImage` class and `htl_image` table
+- **Room Images:** Integration with PrestaShop core `Image` class and `image` table
+- **URL Generation:** Proper media link generation with caching support
+- **Performance:** Optimized image queries with proper database indexing
+
+#### Database Schema:
+- Leverages existing `htl_image` table for hotel images
+- Uses standard PrestaShop `image` and `image_lang` tables for room images
+- No additional schema changes required
+
+#### Frontend Benefits:
+- Rich visual content for property showcases
+- Room type galleries with detailed imagery
+- Cover image identification for primary displays
+- Responsive image URLs (medium format optimized)
+
+### API Response Structure Updates:
+
+**Before (v2.0):**
+```json
+{
+    "hotel": {
+        "hotel_name": "Grand Plaza Hotel",
+        "contact": {...}
+    },
+    "room": {
+        "room_type": "Deluxe Room",
+        "amenities": [...]
+    }
+}
+```
+
+**After (v2.1):**
+```json
+{
+    "hotel": {
+        "hotel_name": "Grand Plaza Hotel",
+        "contact": {...},
+        "images": [{
+            "id": 1,
+            "is_cover": true,
+            "url": "http://localhost:8080/modules/hotelreservationsystem/views/img/hotel_img/1/1.jpg"
+        }]
+    },
+    "room": {
+        "room_type": "Deluxe Room",
+        "amenities": [...],
+        "images": [{
+            "id": 1,
+            "is_cover": true,
+            "legend": "Main room view",
+            "url": "http://localhost:8080/1-medium_default/deluxe-room.jpg"
+        }]
+    }
+}
+```
+
+This comprehensive API development guide provides the foundation for implementing a robust external hotel reservation system with full image support while maintaining complete compatibility with the existing PrestaShop infrastructure.
