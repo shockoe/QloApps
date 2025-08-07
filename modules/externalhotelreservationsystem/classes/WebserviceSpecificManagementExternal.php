@@ -50,6 +50,8 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
                     return $this->handleCartDetails($method);
                 case 'empty-cart':
                     return $this->handleEmptyCart($method);
+                case 'cancel-reservation':
+                    return $this->handleCancelReservation($method, $params);
                 default:
                     // Default to availability for backward compatibility
                     return $this->handleAvailability($method);
@@ -392,6 +394,44 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
     {
         $this->objOutput = $obj;
         return $this;
+    }
+
+    protected function handleCancelReservation($method, $params)
+    {
+        $this->logMessage('Entering handleCancelReservation() method. Method: ' . $method);
+        if ($method !== 'POST') {
+            $this->logMessage('Method Not Allowed for cancel-reservation: ' . $method, 'error');
+            $this->errorResponse('Method Not Allowed', 405);
+            return;
+        }
+        
+        try {
+            require_once(dirname(__FILE__).'/ExternalCancellationManager.php');
+            $manager = new ExternalCancellationManager();
+            $input = Tools::file_get_contents('php://input');
+            $this->logMessage('Cancel Reservation Raw Input: ' . $input);
+            $data = json_decode($input, true);
+            
+            $confirmation_number = isset($data['confirmation_number']) ? $data['confirmation_number'] : '';
+            $customer_id = isset($data['customer_id']) ? $data['customer_id'] : '';
+            $secure_key = isset($data['secure_key']) ? $data['secure_key'] : '';
+            $cancellation_reason = isset($data['cancellation_reason']) ? $data['cancellation_reason'] : '';
+
+            if (empty($confirmation_number) || empty($customer_id) || empty($secure_key)) {
+                $this->logMessage('Missing required parameters for cancellation', 'error');
+                $this->errorResponse('confirmation_number, customer_id, and secure_key are required in request body', 400);
+                return;
+            }
+            
+            $result = $manager->processCancellationRequest($data);
+            $this->logMessage('Exiting handleCancelReservation() method. Result: ' . json_encode($result));
+            
+            $this->output = json_encode($result);
+        } catch (Exception $e) {
+            $this->logMessage('Exception in handleCancelReservation: ' . $e->getMessage(), 'error');
+            $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
+        }
+        return true;
     }
 
     protected function logMessage($message, $level = 'info')

@@ -739,7 +739,149 @@ Authorization: Basic <base64_encoded_ws_key>
 
 ---
 
-## 6. Get Booking Details Endpoint
+## 6. Cancel Reservation Endpoint
+
+### Endpoint Details
+```
+POST /api/external/cancel-reservation
+```
+
+### Purpose
+Allows authenticated customers to cancel their own hotel reservations, applying hotel-specific cancellation policies and calculating appropriate refund amounts.
+
+### Request Parameters
+
+#### Required Parameters (JSON Body)
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `confirmation_number` | string | Order confirmation number | `QQSWLVLPH` |
+| `customer_id` | integer | Customer identifier | `2` |
+| `secure_key` | string | Customer's secure authentication key | `0c8c673527f2c73b4a2a593245720bf6` |
+
+#### Optional Parameters
+| Parameter | Type | Description | Default | Example |
+|-----------|------|-------------|---------|---------|
+| `cancellation_reason` | string | Reason for cancellation | `""` | `"Change of travel plans"` |
+
+### Request Example
+```http
+POST /api/external/cancel-reservation
+Content-Type: application/json
+Authorization: Basic <base64_encoded_ws_key>
+
+{
+    "confirmation_number": "QQSWLVLPH",
+    "customer_id": 2,
+    "secure_key": "0c8c673527f2c73b4a2a593245720bf6",
+    "cancellation_reason": "Change of travel plans"
+}
+```
+
+### Response Structure
+
+#### Success Response (200 OK)
+```json
+{
+    "success": true,
+    "timestamp": "2024-03-15T10:30:00Z",
+    "cancellation": {
+        "booking_id": "QQSWLVLPH",
+        "cancellation_id": "CANCEL-001234",
+        "order_id": 5678,
+        "status": "confirmed",
+        "cancellation_date": "2024-03-15T10:30:00Z",
+        
+        "booking_summary": {
+            "hotel": {
+                "hotel_name": "Grand Plaza Hotel"
+            },
+            "room": {
+                "room_num": "101",
+                "room_type": "Deluxe Room"
+            },
+            "dates": {
+                "check_in": "2024-03-17",
+                "check_out": "2024-03-19"
+            },
+            "original_amount": {
+                "total": 200.00,
+                "currency": "USD"
+            }
+        },
+        
+        "cancellation_details": {
+            "refund_amount": {
+                "amount": 200.00,
+                "currency": "USD",
+                "refund_method": "original_payment_method"
+            }
+        }
+    }
+}
+```
+
+#### Error Response (404 Not Found)
+```json
+{
+    "success": false,
+    "error": "Booking not found or does not belong to customer",
+    "error_code": "BOOKING_NOT_FOUND",
+    "timestamp": "2024-03-15T10:30:00Z",
+    "details": {
+        "booking_id": "QQSWLVLPH",
+        "customer_id": 2
+    }
+}
+```
+
+#### Error Response (400 Bad Request)
+```json
+{
+    "success": false,
+    "error": "Cancellation deadline has passed",
+    "error_code": "CANCELLATION_DEADLINE_PASSED",
+    "timestamp": "2024-03-15T10:30:00Z",
+    "details": {
+        "check_in_date": "2024-03-16",
+        "current_time": "2024-03-16T10:30:00Z"
+    }
+}
+```
+
+#### Error Response (409 Conflict)
+```json
+{
+    "success": false,
+    "error": "This booking has already been cancelled",
+    "error_code": "ALREADY_CANCELLED",
+    "timestamp": "2024-03-15T10:30:00Z",
+    "details": {
+        "cancellation_date": "2024-03-10T14:30:00Z",
+        "refund_status": "processed",
+        "refund_reference": "REF-CS-001234"
+    }
+}
+```
+
+### Business Logic
+
+#### Cancellation Rules
+- **Customer Verification:** Booking must belong to authenticated customer
+- **Status Update:** Order and booking details are marked as cancelled.
+- **Refund (Basic):** Currently, a full refund is assumed. Advanced refund rules based on cancellation policies are a future enhancement.
+
+#### Security Features
+- **Customer Verification:** Booking must belong to authenticated customer
+- **Multi-layer Authentication:** WebService key + customer credentials
+
+### Implementation References
+- **Handler Class:** `WebserviceSpecificManagementExternal::handleCancelReservation()`
+- **Business Logic:** `ExternalCancellationManager::processCancellationRequest()`
+- **Status Updates:** PrestaShop `OrderHistory` and `HotelBookingDetail` classes.
+
+---
+
+## 7. Get Booking Details Endpoint
 
 ### Endpoint Details
 ```
@@ -1052,7 +1194,7 @@ CREATE TABLE htl_image (
 -- Includes multilingual legend support via image_lang table
 ```
 
-This image integration provides comprehensive visual support for all booking-related operations while maintaining compatibility with existing PrestaShop image management systems.
+This image integration provides comprehensive visual support for all booking-related operations while maintaining complete compatibility with the existing PrestaShop infrastructure.
 
 ---
 
@@ -1077,6 +1219,7 @@ modules/externalhotelreservationsystem/
 │   ├── ExternalCartDetailsManager.php           # Cart details retrieval
 │   ├── ExternalEmptyCartManager.php             # Cart cleanup operations
 │   ├── ExternalApiValidator.php                 # Input validation utilities
+│   ├── ExternalCancellationManager.php          # Cancellation logic
 │   └── index.php
 ├── logs/
 │   └── debug.log                                # API request/response logging
@@ -1086,7 +1229,7 @@ modules/externalhotelreservationsystem/
 ```
 
 **Key Implementation Features:**
-- ✅ Complete endpoint coverage (availability, cart, reservation, booking, my-stay)
+- ✅ Complete endpoint coverage (availability, cart, reservation, booking, my-stay, cancel-reservation)
 - ✅ Customer management (signup, login, authentication)
 - ✅ Image support for hotels and rooms
 - ✅ POST method implementation for secure operations
@@ -1144,6 +1287,12 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
                 return $this->handleMakeReservation($method);
             case 'booking':
                 return $this->handleBookingDetails($method, $pathParts);
+            case 'booking-by-confirmation':
+                return $this->handleBookingByConfirmation($method, $params);
+            case 'my-stay':
+                return $this->handleMyStay($method, $params);
+            case 'cancel-reservation':
+                return $this->handleCancelReservation($method, $params);
             default:
                 return $this->errorResponse('Unknown endpoint: ' . $endpoint);
         }
