@@ -1,0 +1,20 @@
+meta {
+  name: Get Booking Details by Confirmation Number
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/external/booking-by-confirmation?confirmation_number=QQSWLVLPH&output_format=JSON
+  body: none
+  auth: inherit
+}
+
+params:query {
+  confirmation_number: QQSWLVLPH
+  output_format: JSON
+}
+
+headers {
+  Content-Type: application/json
+}

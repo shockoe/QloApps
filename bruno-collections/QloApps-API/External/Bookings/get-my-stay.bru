@@ -1,0 +1,22 @@
+meta {
+  name: Get Customer Active and Upcoming Reservations
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/external/my-stay
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "customer_id": 2,
+    "secure_key": "0c8c673527f2c73b4a2a593245720bf6"
+  }
+}
+
+headers {
+  Content-Type: application/json
+}

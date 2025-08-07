@@ -38,6 +38,10 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
                     return $this->handleMakeReservation($method);
                 case 'booking':
                     return $this->handleBookingDetails($method, $params);
+                case 'booking-by-confirmation':
+                    return $this->handleBookingByConfirmation($method, $params);
+                case 'my-stay':
+                    return $this->handleMyStay($method, $params);
                 case 'customer-signup':
                     return $this->handleCustomerSignup($method);
                 case 'customer-login':
@@ -160,6 +164,38 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
         return true;
     }
 
+    protected function handleBookingByConfirmation($method, $params)
+    {
+        $this->logMessage('Entering handleBookingByConfirmation() method. Method: ' . $method);
+        if ($method !== 'GET') {
+            $this->logMessage('Method Not Allowed for booking-by-confirmation: ' . $method, 'error');
+            $this->errorResponse('Method Not Allowed', 405);
+            return;
+        }
+        
+        try {
+            require_once(dirname(__FILE__).'/ExternalBookingManager.php');
+            $manager = new ExternalBookingManager();
+            $confirmation_number = isset($params['confirmation_number']) ? $params['confirmation_number'] : '';
+            $this->logMessage('Confirmation Number: ' . $confirmation_number);
+            
+            if (empty($confirmation_number)) {
+                $this->logMessage('Missing confirmation_number parameter', 'error');
+                $this->errorResponse('confirmation_number parameter is required', 400);
+                return;
+            }
+            
+            $result = $manager->getBookingDetailsByConfirmation($confirmation_number);
+            $this->logMessage('Exiting handleBookingByConfirmation() method. Result: ' . json_encode($result));
+            
+            $this->output = json_encode($result);
+        } catch (Exception $e) {
+            $this->logMessage('Exception in handleBookingByConfirmation: ' . $e->getMessage(), 'error');
+            $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
+        }
+        return true;
+    }
+
     protected function handleCustomerSignup($method)
     {
         $this->logMessage('Entering handleCustomerSignup() method. Method: ' . $method);
@@ -240,6 +276,7 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
             $this->logMessage('Exception in handleCartDetails: ' . $e->getMessage(), 'error');
             $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
         }
+        return true;
     }
 
     protected function handleEmptyCart($method)
@@ -247,7 +284,8 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
         $this->logMessage('Entering handleEmptyCart() method. Method: ' . $method);
         if ($method !== 'POST') {
             $this->logMessage('Method Not Allowed for empty-cart: ' . $method, 'error');
-            return $this->errorResponse('Method Not Allowed', 405);
+            $this->errorResponse('Method Not Allowed', 405);
+            return;
         }
         
         try {
@@ -259,11 +297,48 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
             $this->logMessage('Exiting handleEmptyCart() method. Result: ' . json_encode($result));
             
             $this->output = json_encode($result);
-            return $this->output;
         } catch (Exception $e) {
             $this->logMessage('Exception in handleEmptyCart: ' . $e->getMessage(), 'error');
-            return $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
+            $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
         }
+        return true;
+    }
+
+    protected function handleMyStay($method, $params)
+    {
+        $this->logMessage('Entering handleMyStay() method. Method: ' . $method);
+        if ($method !== 'POST') {
+            $this->logMessage('Method Not Allowed for my-stay: ' . $method, 'error');
+            $this->errorResponse('Method Not Allowed', 405);
+            return;
+        }
+        
+        try {
+            require_once(dirname(__FILE__).'/ExternalMyStayManager.php');
+            $manager = new ExternalMyStayManager();
+            $input = Tools::file_get_contents('php://input');
+            $this->logMessage('My Stay Raw Input: ' . $input);
+            $data = json_decode($input, true);
+            
+            $customer_id = isset($data['customer_id']) ? $data['customer_id'] : '';
+            $secure_key = isset($data['secure_key']) ? $data['secure_key'] : '';
+            $this->logMessage('Customer ID: ' . $customer_id . ', Secure Key: ' . substr($secure_key, 0, 8) . '...');
+            
+            if (empty($customer_id) || empty($secure_key)) {
+                $this->logMessage('Missing required parameters customer_id or secure_key', 'error');
+                $this->errorResponse('customer_id and secure_key are required in request body', 400);
+                return;
+            }
+            
+            $result = $manager->getCustomerReservations($customer_id, $secure_key);
+            $this->logMessage('Exiting handleMyStay() method. Result: ' . json_encode($result));
+            
+            $this->output = json_encode($result);
+        } catch (Exception $e) {
+            $this->logMessage('Exception in handleMyStay: ' . $e->getMessage(), 'error');
+            $this->errorResponse('Internal error: ' . $e->getMessage(), 500);
+        }
+        return true;
     }
 
     protected function errorResponse($message, $httpStatus = 400)
@@ -276,7 +351,7 @@ class WebserviceSpecificManagementExternal implements WebserviceSpecificManageme
         );
         
         $this->output = json_encode($errorResponse);
-        return $this->output;
+        http_response_code($httpStatus);
     }
 
     public function getWsObject()
